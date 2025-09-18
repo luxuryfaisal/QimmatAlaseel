@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>جدول تتبع الطلبات</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/earlyaccess/droidarabickufi.css');
+
+    body {
+      font-family: 'Droid Arabic Kufi', sans-serif;
+      background-color: #f4f7f9;
+      color: #333;
+      direction: rtl;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1a4d6f;
+    }
+
+    .table-container {
+      max-width: 900px;
+      margin: 40px auto;
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .order-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1em;
+    }
+
+    .order-table th,
+    .order-table td {
+      padding: 15px;
+      text-align: right;
+      border-bottom: 1px solid #e0e6e9;
+    }
+
+    .order-table th {
+      background-color: #2c7bb6;
+      color: #fff;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: sticky;
+      top: 0;
+    }
+
+    .order-table tbody tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    .order-table tbody tr:hover {
+      background-color: #eaf6fd;
+      transition: background-color 0.3s ease;
+    }
+
+    .editable {
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .date-input {
+      border: none;
+      background: none;
+      font-family: 'Droid Arabic Kufi', sans-serif;
+      font-size: 1em;
+      text-align: right;
+      width: 100%;
+    }
+
+    .status-cell {
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .status-cell.has-note {
+      color: #1a4d6f;
+      text-decoration: underline;
+    }
+    
+    .status-cell.has-note:after {
+      content: ' (ملاحظة)';
+      font-size: 0.8em;
+      color: #666;
+    }
+
+    .status-received {
+      color: #28a745;
+    }
+
+    .status-pending {
+      color: #ffc107;
+    }
+
+    .status-shipped {
+      color: #17a2b8;
+    }
+
+    .button-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .button-container button {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+      margin: 0 5px;
+    }
+
+    .button-container button:hover {
+      background-color: #218838;
+    }
+
+    .button-container #savePdfBtn {
+      background-color: #dc3545;
+    }
+
+    .button-container #savePdfBtn:hover {
+      background-color: #c82333;
+    }
+
+    .button-container #printBtn {
+      background-color: #6c757d;
+    }
+
+    .button-container #printBtn:hover {
+      background-color: #5a6268;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+      padding-top: 60px;
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 10px;
+      position: relative;
+      animation-name: animatetop;
+      animation-duration: 0.4s;
+    }
+
+    .close {
+      color: #aaa;
+      float: left;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      background-color: #f8f8f8;
+      resize: none;
+      direction: rtl;
+    }
+
+    .modal-buttons {
+      text-align: left;
+      margin-top: 10px;
+    }
+
+    .modal-buttons button {
+      background-color: #2c7bb6;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    .modal-buttons button:hover {
+      background-color: #1a4d6f;
+    }
+
+    @keyframes animatetop {
+      from {top: -300px; opacity: 0}
+      to {top: 0; opacity: 1}
+    }
+    
+    /* Styles specifically for printing and PDF generation */
+    @media print {
+      body {
+        background-color: #fff;
+      }
+      .table-container {
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        max-width: none;
+        overflow: visible;
+      }
+      .button-container, .modal {
+        display: none !important;
+      }
+      .order-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .order-table th, .order-table td {
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+      /* Hide the main 'click here' text */
+      .status-cell {
+        font-size: 0;
+        line-height: 0;
+        padding: 10px;
+      }
+      /* Show 'Note' label and note text */
+      .status-cell.has-note:before {
+        content: 'ملاحظة: ' !important;
+        font-size: 16px;
+        line-height: 1.5;
+        font-weight: bold;
+        color: #000;
+        display: block;
+      }
+      .status-cell.has-note:after {
+        content: attr(data-note) !important;
+        white-space: pre-wrap !important;
+        font-size: 16px !important;
+        line-height: 1.5;
+        color: #666 !important;
+        display: block;
+      }
+      .status-cell:not(.has-note):before, .status-cell:not(.has-note):after {
+        content: '' !important;
+        display: none !important;
+      }
+      h2 {
+        color: #000;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="table-container" id="table-to-print">
+  <h2>جدول تتبع الطلبات</h2>
+  <table class="order-table" dir="rtl">
+    <thead>
+      <tr>
+        <th>تاريخ آخر استفسار</th>
+        <th>حالة الطلب</th>
+        <th>رقم القطعة</th>
+        <th>رقم الطلب</th>
+      </tr>
+    </thead>
+    <tbody id="order-table-body">
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251024435', this)" data-order-id="251024435">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">87-2</td>
+        <td contenteditable="true">251024435</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('25100006', this)" data-order-id="25100006">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">87-1</td>
+        <td contenteditable="true">25100006</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('241167299', this)" data-order-id="241167299">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">1322</td>
+        <td contenteditable="true">241167299</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016443', this)" data-order-id="251016443">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">152</td>
+        <td contenteditable="true">251016443</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016435', this)" data-order-id="251016435">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">1541-2</td>
+        <td contenteditable="true">251016435</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016376', this)" data-order-id="251016376">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">1441</td>
+        <td contenteditable="true">251016376</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016362', this)" data-order-id="251016362">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">59</td>
+        <td contenteditable="true">251016362</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016352', this)" data-order-id="251016352">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">1439</td>
+        <td contenteditable="true">251016352</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251016312', this)" data-order-id="251016312">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">154</td>
+        <td contenteditable="true">251016312</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251047395', this)" data-order-id="251047395">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">151</td>
+        <td contenteditable="true">251047395</td>
+      </tr>
+      <tr>
+        <td class="editable" onclick="editDate(this)"></td>
+        <td class="status-cell" onclick="openNoteModal('251047386', this)" data-order-id="251047386">للتفاصيل اضغط هنا</td>
+        <td contenteditable="true" class="part-number-cell">153</td>
+        <td contenteditable="true">251047386</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="button-container">
+  <button onclick="addRow()">إضافة صف جديد</button>
+  <button id="savePdfBtn" onclick="saveAsPdf()">حفظ بصيغة PDF</button>
+  <button id="printBtn" onclick="printTable()">طباعة</button>
+</div>
+
+<div id="noteModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeNoteModal()">&times;</span>
+    <h3>ملاحظة الطلب</h3>
+    <textarea id="noteInput" placeholder="اكتب ملاحظاتك هنا..."></textarea>
+    <div class="modal-buttons">
+      <button onclick="saveNote()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const notes = {};
+  let currentOrderId = null;
+  let currentNoteCell = null;
+  let rowCounter = 12;
+
+  function editDate(cell) {
+    if (cell.querySelector('input')) {
+      return;
+    }
+    const originalContent = cell.textContent;
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = 'date-input';
+    input.min = '2025-01-01';
+    input.max = '2025-12-31';
+    input.value = originalContent.trim() || '';
+
+    cell.innerHTML = '';
+    cell.appendChild(input);
+
+    input.focus();
+
+    input.addEventListener('blur', () => {
+      cell.textContent = input.value || originalContent;
+    });
+
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        input.blur();
+      }
+    });
+  }
+
+  function openNoteModal(orderId, cell) {
+    currentOrderId = orderId;
+    currentNoteCell = cell;
+    const modal = document.getElementById('noteModal');
+    const noteInput = document.getElementById('noteInput');
+    
+    noteInput.value = notes[orderId] || '';
+    modal.style.display = 'block';
+  }
+
+  function closeNoteModal() {
+    const modal = document.getElementById('noteModal');
+    modal.style.display = 'none';
+  }
+
+  function saveNote() {
+    const noteInput = document.getElementById('noteInput');
+    notes[currentOrderId] = noteInput.value;
+    if (noteInput.value.trim() !== '') {
+      currentNoteCell.classList.add('has-note');
+      currentNoteCell.setAttribute('data-note', noteInput.value.trim());
+    } else {
+      currentNoteCell.classList.remove('has-note');
+      currentNoteCell.removeAttribute('data-note');
+    }
+    closeNoteModal();
+    alert('تم حفظ الملاحظة بنجاح!');
+  }
+
+  function addRow() {
+    const tableBody = document.getElementById('order-table-body');
+    const newRow = document.createElement('tr');
+    const newOrderId = 'ORD-' + rowCounter;
+    
+    newRow.innerHTML = `
+      <td class="editable" onclick="editDate(this)"></td>
+      <td class="status-cell" onclick="openNoteModal('${newOrderId}', this)" data-order-id="${newOrderId}">للتفاصيل اضغط هنا</td>
+      <td contenteditable="true" class="part-number-cell"></td>
+      <td contenteditable="true">${newOrderId}</td>
+    `;
+    tableBody.appendChild(newRow);
+    rowCounter++;
+  }
+
+  function prepareForOutput() {
+    const statusCells = document.querySelectorAll('.status-cell');
+    statusCells.forEach(cell => {
+      const orderId = cell.getAttribute('data-order-id');
+      if (notes[orderId] && notes[orderId].trim() !== '') {
+        cell.setAttribute('data-note', notes[orderId].trim());
+      } else {
+        cell.removeAttribute('data-note');
+      }
+    });
+  }
+
+  function restoreAfterOutput() {
+    const statusCells = document.querySelectorAll('.status-cell');
+    statusCells.forEach(cell => {
+      cell.removeAttribute('data-note');
+    });
+  }
+
+  function saveAsPdf() {
+    prepareForOutput();
+    const element = document.getElementById('table-to-print');
+    const opt = {
+      margin:       1,
+      filename:     'جدول تتبع الطلبات.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, logging: true, dpi: 192, letterRendering: true },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().from(element).set(opt).save().then(() => {
+      restoreAfterOutput();
+    });
+  }
+
+  function printTable() {
+    prepareForOutput();
+    window.print();
+    setTimeout(restoreAfterOutput, 500);
+  }
+
+  window.onclick = function(event) {
+    const modal = document.getElementById('noteModal');
+    if (event.target == modal) {
+      closeNoteModal();
+    }
+  };
+</script>
+
+</body>
+</html>

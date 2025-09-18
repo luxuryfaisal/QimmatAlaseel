@@ -3,7 +3,7 @@ import { LogOut, User, Settings, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 
 // Safe ESM logo import with fallback
-const logos = import.meta.glob('@assets/generated_images/Picsart_25-09-19_00-28-14-307.png', { 
+const logos = import.meta.glob('@assets/Picsart_25-09-19_00-28-14-307_1758237498784.png', { 
   eager: true, 
   query: '?url',
   import: 'default'

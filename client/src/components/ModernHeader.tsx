@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Settings, Moon, Sun } from "lucide-react";
-import logoUrl from '@assets/generated_images/Qimmat_Al-Aseel_Company_Logo_f402e33f.png';
+import logoUrl from '@assets/generated_images/Picsart_25-09-19_00-28-14-307.png';
 
 interface ModernHeaderProps {
   username: string;

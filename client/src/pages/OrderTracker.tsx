@@ -7,8 +7,8 @@ import NoteModal from "../components/NoteModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Save, FileText, Printer, LogOut, User, Calendar, Package, ShoppingCart, Clock } from "lucide-react";
-import type { Order, Note } from "@shared/schema";
+import { Loader2, Plus, Save, FileText, Printer, LogOut, User, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare } from "lucide-react";
+import type { Order, Note, Task } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -23,6 +23,7 @@ export default function OrderTracker() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [currentNote, setCurrentNote] = useState("");
+  const [activeTab, setActiveTab] = useState<"orders" | "tasks">("orders");
 
   // Check authentication on mount
   useEffect(() => {
@@ -130,6 +131,53 @@ export default function OrderTracker() {
     }
   });
 
+  // Fetch tasks
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    enabled: isAuthenticated
+  });
+
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: Partial<Task>) => {
+      const response = await apiRequest('POST', '/api/tasks', taskData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      toast({
+        title: "تم إضافة المهمة بنجاح",
+        description: "تم إنشاء مهمة جديدة في الجدول"
+      });
+    }
+  });
+
+  // Update task mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<Task>) => {
+      const response = await apiRequest('PUT', `/api/tasks/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    }
+  });
+
+  // Delete task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/tasks/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      toast({
+        title: "تم حذف المهمة",
+        description: "تم حذف المهمة بنجاح"
+      });
+    }
+  });
+
   const handleLogin = (username: string) => {
     setIsAuthenticated(true);
     setCurrentUser(username);
@@ -189,6 +237,27 @@ export default function OrderTracker() {
     setCurrentNote("");
   };
 
+  // Task handlers
+  const handleAddTask = () => {
+    createTaskMutation.mutate({
+      taskName: `مهمة جديدة - ${Date.now()}`,
+      taskType: "",
+      lastInquiry: "",
+      taskStatus: "قيد المراجعة",
+      dueDate: ""
+    });
+  };
+
+  const handleUpdateTask = (taskId: string, field: keyof Task, value: string) => {
+    updateTaskMutation.mutate({ id: taskId, [field]: value });
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    if (confirm('هل أنت متأكد من حذف هذه المهمة؟')) {
+      deleteTaskMutation.mutate(taskId);
+    }
+  };
+
   const handleExportPDF = () => {
     const element = document.getElementById('table-container');
     if (!element) return;
@@ -216,6 +285,10 @@ export default function OrderTracker() {
   const totalOrders = orders.length;
   const pendingOrders = orders.filter((o: Order) => o.status?.includes('قيد') || !o.status).length;
   const completedOrders = totalOrders - pendingOrders;
+
+  const totalTasks = tasks.length;
+  const pendingTasks = tasks.filter((t: Task) => t.taskStatus?.includes('قيد') || !t.taskStatus).length;
+  const completedTasks = totalTasks - pendingTasks;
 
   if (!isAuthenticated) {
     return <AuthModal onLogin={handleLogin} />;
@@ -259,20 +332,58 @@ export default function OrderTracker() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Tabs Navigation */}
+        <div className="mb-6">
+          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                activeTab === "orders"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid="tab-orders"
+            >
+              <ShoppingCart className="w-4 h-4 ml-2" />
+              قسم طلبات الكهرباء
+            </button>
+            <button
+              onClick={() => setActiveTab("tasks")}
+              className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                activeTab === "tasks"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid="tab-tasks"
+            >
+              <CheckSquare className="w-4 h-4 ml-2" />
+              قسم إدارة المهام
+            </button>
+          </div>
+        </div>
+
         {/* Status Bar */}
         <Card className="p-4 mb-6 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-reverse space-x-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground" data-testid="text-total-orders">{totalOrders}</div>
-                <div className="text-sm text-muted-foreground">إجمالي الطلبات</div>
+                <div className="text-2xl font-bold text-foreground" data-testid={activeTab === "orders" ? "text-total-orders" : "text-total-tasks"}>
+                  {activeTab === "orders" ? totalOrders : totalTasks}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {activeTab === "orders" ? "إجمالي الطلبات" : "إجمالي المهام"}
+                </div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold status-pending" data-testid="text-pending-orders">{pendingOrders}</div>
+                <div className="text-2xl font-bold status-pending" data-testid={activeTab === "orders" ? "text-pending-orders" : "text-pending-tasks"}>
+                  {activeTab === "orders" ? pendingOrders : pendingTasks}
+                </div>
                 <div className="text-sm text-muted-foreground">قيد المراجعة</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold status-received" data-testid="text-completed-orders">{completedOrders}</div>
+                <div className="text-2xl font-bold status-received" data-testid={activeTab === "orders" ? "text-completed-orders" : "text-completed-tasks"}>
+                  {activeTab === "orders" ? completedOrders : completedTasks}
+                </div>
                 <div className="text-sm text-muted-foreground">مكتملة</div>
               </div>
             </div>
@@ -284,130 +395,243 @@ export default function OrderTracker() {
           </div>
         </Card>
 
-        {/* Order Table */}
+        {/* Tables Section */}
         <Card className="shadow-sm overflow-hidden" id="table-container">
           <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-foreground">جدول تتبع الطلبات</h2>
+              <h2 className="text-xl font-bold text-foreground">
+                {activeTab === "orders" ? "جدول تتبع الطلبات" : "جدول إدارة المهام"}
+              </h2>
               <Button 
-                onClick={handleAddRow} 
-                disabled={createOrderMutation.isPending}
-                data-testid="button-add-row"
+                onClick={activeTab === "orders" ? handleAddRow : handleAddTask} 
+                disabled={activeTab === "orders" ? createOrderMutation.isPending : createTaskMutation.isPending}
+                data-testid={activeTab === "orders" ? "button-add-row" : "button-add-task"}
               >
-                {createOrderMutation.isPending ? (
+                {(activeTab === "orders" ? createOrderMutation.isPending : createTaskMutation.isPending) ? (
                   <Loader2 className="w-4 h-4 animate-spin ml-1" />
                 ) : (
                   <Plus className="w-4 h-4 ml-1" />
                 )}
-                إضافة صف جديد
+                {activeTab === "orders" ? "إضافة صف جديد" : "إضافة مهمة جديدة"}
               </Button>
             </div>
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full order-table">
-              <thead className="bg-primary">
-                <tr>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
-                    <Calendar className="w-4 h-4 inline ml-1" />
-                    تاريخ آخر استفسار
-                  </th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
-                    <FileText className="w-4 h-4 inline ml-1" />
-                    حالة الطلب
-                  </th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
-                    <Package className="w-4 h-4 inline ml-1" />
-                    رقم القطعة
-                  </th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
-                    <ShoppingCart className="w-4 h-4 inline ml-1" />
-                    رقم الطلب
-                  </th>
-                  <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground no-print">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {isLoading ? (
+            {activeTab === "orders" ? (
+              <table className="w-full order-table">
+                <thead className="bg-primary">
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                      <div className="text-muted-foreground">جاري تحميل الطلبات...</div>
-                    </td>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Calendar className="w-4 h-4 inline ml-1" />
+                      تاريخ آخر استفسار
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <FileText className="w-4 h-4 inline ml-1" />
+                      حالة الطلب
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Package className="w-4 h-4 inline ml-1" />
+                      رقم القطعة
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <ShoppingCart className="w-4 h-4 inline ml-1" />
+                      رقم الطلب
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground no-print">الإجراءات</th>
                   </tr>
-                ) : orders.length === 0 ? (
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        <div className="text-muted-foreground">جاري تحميل الطلبات...</div>
+                      </td>
+                    </tr>
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                        لا توجد طلبات حالياً
+                      </td>
+                    </tr>
+                  ) : (
+                    orders.map((order: Order) => {
+                      const orderNote = allNotes.find((note: Note) => note.orderId === order.id);
+                      return (
+                        <tr key={order.id} className="hover:bg-accent/50 transition-colors duration-200">
+                          <td className="px-6 py-4">
+                            <Input
+                              type="date"
+                              value={order.lastInquiry || ""}
+                              onChange={(e) => handleUpdateOrder(order.id, 'lastInquiry', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                              data-testid={`input-date-${order.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Button
+                              variant="link"
+                              className="text-primary hover:text-primary/80 underline p-0 h-auto"
+                              onClick={() => handleOpenNoteModal(order.id)}
+                              data-testid={`button-note-${order.id}`}
+                            >
+                              {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'للتفاصيل اضغط هنا'}
+                            </Button>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="text"
+                              value={order.partNumber || ""}
+                              onChange={(e) => handleUpdateOrder(order.id, 'partNumber', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              placeholder="رقم القطعة"
+                              data-testid={`input-part-${order.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="text"
+                              value={order.orderNumber}
+                              onChange={(e) => handleUpdateOrder(order.id, 'orderNumber', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              data-testid={`input-order-${order.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4 no-print">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-destructive hover:text-destructive/80 p-0 h-auto"
+                              onClick={() => handleDeleteOrder(order.id)}
+                              data-testid={`button-delete-${order.id}`}
+                            >
+                              حذف
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full order-table">
+                <thead className="bg-primary">
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                      لا توجد طلبات حالياً
-                    </td>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Calendar className="w-4 h-4 inline ml-1" />
+                      تاريخ الاستحقاق
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Calendar className="w-4 h-4 inline ml-1" />
+                      تاريخ آخر استفسار
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <FileText className="w-4 h-4 inline ml-1" />
+                      حالة المهمة
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Settings className="w-4 h-4 inline ml-1" />
+                      نوع المهمة
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <CheckSquare className="w-4 h-4 inline ml-1" />
+                      اسم المهمة
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground no-print">الإجراءات</th>
                   </tr>
-                ) : (
-                  orders.map((order: Order) => {
-                    const orderNote = allNotes.find((note: Note) => note.orderId === order.id);
-                    return (
-                      <tr key={order.id} className="hover:bg-accent/50 transition-colors duration-200">
-                        <td className="px-6 py-4">
-                          <Input
-                            type="date"
-                            value={order.lastInquiry || ""}
-                            onChange={(e) => handleUpdateOrder(order.id, 'lastInquiry', e.target.value)}
-                            className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
-                            data-testid={`input-date-${order.id}`}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Button
-                            variant="link"
-                            className="text-primary hover:text-primary/80 underline p-0 h-auto"
-                            onClick={() => handleOpenNoteModal(order.id)}
-                            data-testid={`button-note-${order.id}`}
-                          >
-                            {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'للتفاصيل اضغط هنا'}
-                          </Button>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Input
-                            type="text"
-                            value={order.partNumber || ""}
-                            onChange={(e) => handleUpdateOrder(order.id, 'partNumber', e.target.value)}
-                            className="bg-transparent border-none rtl-input focus:ring-0"
-                            placeholder="رقم القطعة"
-                            data-testid={`input-part-${order.id}`}
-                          />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Input
-                            type="text"
-                            value={order.orderNumber}
-                            onChange={(e) => handleUpdateOrder(order.id, 'orderNumber', e.target.value)}
-                            className="bg-transparent border-none rtl-input focus:ring-0"
-                            data-testid={`input-order-${order.id}`}
-                          />
-                        </td>
-                        <td className="px-6 py-4 no-print">
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="text-destructive hover:text-destructive/80 p-0 h-auto"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            data-testid={`button-delete-${order.id}`}
-                          >
-                            حذف
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {isLoadingTasks ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        <div className="text-muted-foreground">جاري تحميل المهام...</div>
+                      </td>
+                    </tr>
+                  ) : tasks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                        لا توجد مهام حالياً
+                      </td>
+                    </tr>
+                  ) : (
+                    tasks.map((task: Task) => {
+                      return (
+                        <tr key={task.id} className="hover:bg-accent/50 transition-colors duration-200">
+                          <td className="px-6 py-4">
+                            <Input
+                              type="date"
+                              value={task.dueDate || ""}
+                              onChange={(e) => handleUpdateTask(task.id, 'dueDate', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                              data-testid={`input-due-date-${task.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="date"
+                              value={task.lastInquiry || ""}
+                              onChange={(e) => handleUpdateTask(task.id, 'lastInquiry', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                              data-testid={`input-last-inquiry-${task.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="text"
+                              value={task.taskStatus || ""}
+                              onChange={(e) => handleUpdateTask(task.id, 'taskStatus', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              placeholder="حالة المهمة"
+                              data-testid={`input-task-status-${task.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="text"
+                              value={task.taskType || ""}
+                              onChange={(e) => handleUpdateTask(task.id, 'taskType', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              placeholder="نوع المهمة"
+                              data-testid={`input-task-type-${task.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4">
+                            <Input
+                              type="text"
+                              value={task.taskName}
+                              onChange={(e) => handleUpdateTask(task.id, 'taskName', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              data-testid={`input-task-name-${task.id}`}
+                            />
+                          </td>
+                          <td className="px-6 py-4 no-print">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-destructive hover:text-destructive/80 p-0 h-auto"
+                              onClick={() => handleDeleteTask(task.id)}
+                              data-testid={`button-delete-task-${task.id}`}
+                            >
+                              حذف
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </Card>
 
         {/* Action Buttons */}
         <div className="mt-6 flex flex-wrap gap-4 justify-center no-print">
           <Button 
-            onClick={() => refetch()}
+            onClick={() => activeTab === "orders" ? refetch() : refetchTasks()}
             data-testid="button-save"
           >
             <Save className="w-4 h-4 ml-1" />

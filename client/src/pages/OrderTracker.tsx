@@ -7,6 +7,7 @@ import AuthModal from "../components/AuthModal";
 import NoteModal from "../components/NoteModal";
 import AttachmentModal from "../components/AttachmentModal";
 import ModernHeader from "../components/ModernHeader";
+import UserManagement from "../components/UserManagement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -312,7 +313,18 @@ export default function OrderTracker() {
     }));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Call logout endpoint to destroy server session
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    // Clear client-side data
     localStorage.removeItem('orderTrackerAuth');
     localStorage.removeItem('tasksPinAuth'); // Clear PIN session on logout
     setIsAuthenticated(false);
@@ -1094,6 +1106,12 @@ export default function OrderTracker() {
           </div>
         </div>
       )}
+
+      {/* User Management Modal */}
+      <UserManagement
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }

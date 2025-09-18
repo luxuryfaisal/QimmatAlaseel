@@ -26,6 +26,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     },
     onSuccess: (data) => {
       if (data.success) {
+        // Session-based authentication - no need to store tokens
         onLogin(data.user);
         toast({
           title: "تم تسجيل الدخول بنجاح",

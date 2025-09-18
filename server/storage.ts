@@ -1,5 +1,6 @@
 import { type User, type InsertUser, type Order, type InsertOrder, type Note, type InsertNote, type Task, type InsertTask, type TaskNote, type InsertTaskNote, type Attachment, type InsertAttachment, type Settings, type InsertSettings, type Section, type InsertSection } from "@shared/schema";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   // User methods
@@ -7,6 +8,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
 
   // Order methods
@@ -77,11 +79,12 @@ export class MemStorage implements IStorage {
     this.attachments = new Map();
     this.sections = new Map();
     
-    // Initialize with default admin user
+    // Initialize with default admin user (password will be hashed)
+    const hashedPassword = bcrypt.hashSync("admin123", 10);
     const adminUser: User = {
       id: randomUUID(),
       username: "admin",
-      password: "admin123",
+      password: hashedPassword,
       role: "admin",
       createdAt: new Date()
     };
@@ -205,8 +208,10 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
+    const hashedPassword = bcrypt.hashSync(insertUser.password, 10);
     const user: User = { 
       ...insertUser, 
+      password: hashedPassword,
       id,
       role: insertUser.role || "viewer",
       createdAt: new Date()
@@ -219,6 +224,11 @@ export class MemStorage implements IStorage {
     const existingUser = this.users.get(id);
     if (!existingUser) return undefined;
 
+    // Hash password if it's being updated
+    if (updateData.password) {
+      updateData.password = bcrypt.hashSync(updateData.password, 10);
+    }
+
     const updatedUser: User = {
       ...existingUser,
       ...updateData
@@ -229,6 +239,10 @@ export class MemStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
   }
 
   // Order methods

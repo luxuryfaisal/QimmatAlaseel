@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lock, User, Loader2 } from "lucide-react";
+import type { User as UserType } from "@shared/schema";
+
 
 interface AuthModalProps {
-  onLogin: (username: string) => void;
+  onLogin: (user: UserType) => void;
 }
 
 export default function AuthModal({ onLogin }: AuthModalProps) {
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState<'login' | 'guest'>('login');
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
@@ -23,7 +26,7 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     },
     onSuccess: (data) => {
       if (data.success) {
-        onLogin(data.user.username);
+        onLogin(data.user);
         toast({
           title: "تم تسجيل الدخول بنجاح",
           description: `مرحباً بك ${data.user.username}`
@@ -52,6 +55,33 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     loginMutation.mutate({ username, password });
   };
 
+  const guestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/auth/guest', {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        onLogin(data.user);
+        toast({
+          title: "تم دخول الزائر بنجاح",
+          description: "مرحباً بك كزائر"
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ في دخول الزائر",
+        description: "دخول الزائر غير متاح حالياً"
+      });
+    }
+  });
+
+  const handleGuestLogin = () => {
+    guestMutation.mutate();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
       <Card className="w-full max-w-md mx-4 shadow-xl">
@@ -61,9 +91,31 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               <Lock className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">دخول النظام</h2>
-            <p className="text-muted-foreground">الرجاء إدخال بيانات الدخول للوصول إلى نظام تتبع الطلبات</p>
+            <p className="text-muted-foreground">الرجاء اختيار طريقة الدخول للوصول إلى نظام تتبع الطلبات</p>
           </div>
           
+          <div className="flex gap-2 mb-4">
+            <Button
+              type="button"
+              variant={authMode === 'login' ? 'default' : 'outline'}
+              onClick={() => setAuthMode('login')}
+              className="flex-1"
+              data-testid="button-login-mode"
+            >
+              دخول مدير
+            </Button>
+            <Button
+              type="button"
+              variant={authMode === 'guest' ? 'default' : 'outline'}
+              onClick={() => setAuthMode('guest')}
+              className="flex-1"
+              data-testid="button-guest-mode"
+            >
+              دخول زائر
+            </Button>
+          </div>
+          
+          {authMode === 'login' ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
@@ -111,10 +163,30 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
               دخول
             </Button>
           </form>
-          
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            للوصول التجريبي: admin / admin123
+          ) : (
+          <div className="space-y-4">
+            <div className="text-center p-4 bg-secondary/20 rounded-lg">
+              <User className="w-12 h-12 text-secondary-foreground mx-auto mb-2" />
+              <h3 className="font-medium mb-2">دخول كزائر</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                سيمكنك الدخول كزائر من مشاهدة البيانات فقط بدون إمكانية التعديل
+              </p>
+              <Button 
+                onClick={handleGuestLogin}
+                disabled={guestMutation.isPending}
+                className="w-full"
+                data-testid="button-guest-login"
+              >
+                {guestMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                ) : (
+                  <User className="w-4 h-4 ml-1" />
+                )}
+                دخول كزائر
+              </Button>
+            </div>
           </div>
+          )}
         </CardContent>
       </Card>
     </div>

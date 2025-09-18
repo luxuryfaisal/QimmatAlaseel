@@ -342,9 +342,10 @@ export default function OrderTracker() {
   };
 
   // Permission helpers
-  const canEdit = () => userRole === 'admin';
-  const canDelete = () => userRole === 'admin';
+  const canEdit = () => userRole !== 'guest' && userRole !== 'viewer';
+  const canDelete = () => userRole !== 'guest' && userRole !== 'viewer';
   const isGuest = () => userRole === 'guest';
+  const isAdmin = () => userRole === 'admin';
 
   // PIN handlers
   const handleTabChange = (tab: "orders" | "tasks") => {

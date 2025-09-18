@@ -544,14 +544,14 @@ export default function OrderTracker() {
                             />
                           </td>
                           <td className="px-6 py-4">
-                            <Button
-                              variant="link"
-                              className="text-primary hover:text-primary/80 underline p-0 h-auto"
-                              onClick={() => handleOpenNoteModal(order.id)}
-                              data-testid={`button-note-${order.id}`}
-                            >
-                              {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'للتفاصيل اضغط هنا'}
-                            </Button>
+                            <Input
+                              type="text"
+                              value={order.status || ""}
+                              onChange={(e) => handleUpdateOrder(order.id, 'status', e.target.value)}
+                              className="bg-transparent border-none rtl-input focus:ring-0"
+                              placeholder="حالة الطلب"
+                              data-testid={`input-status-${order.id}`}
+                            />
                           </td>
                           <td className="px-6 py-4">
                             <Input
@@ -573,15 +573,26 @@ export default function OrderTracker() {
                             />
                           </td>
                           <td className="px-6 py-4 no-print">
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="text-destructive hover:text-destructive/80 p-0 h-auto"
-                              onClick={() => handleDeleteOrder(order.id)}
-                              data-testid={`button-delete-${order.id}`}
-                            >
-                              حذف
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="text-primary hover:text-primary/80 p-0 h-auto"
+                                onClick={() => handleOpenNoteModal(order.id)}
+                                data-testid={`button-note-${order.id}`}
+                              >
+                                {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'ملاحظة'}
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="text-destructive hover:text-destructive/80 p-0 h-auto"
+                                onClick={() => handleDeleteOrder(order.id)}
+                                data-testid={`button-delete-${order.id}`}
+                              >
+                                حذف
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );

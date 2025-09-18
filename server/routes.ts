@@ -275,12 +275,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const attachmentData = insertAttachmentSchema.parse(req.body);
       
-      // Validate file size (2MB limit)
+      // Validate file type (must be image)
+      if (!attachmentData.fileData.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+        return res.status(400).json({ message: "نوع الملف غير مدعوم - الصور فقط" });
+      }
+      
+      // Calculate actual file size from base64 data
+      const base64Data = attachmentData.fileData.split(',')[1];
+      const actualSizeInBytes = Math.floor((base64Data.length * 3) / 4);
+      
+      // Validate file size (2MB limit based on actual data)
       const maxSize = 2 * 1024 * 1024; // 2MB in bytes
-      const sizeInBytes = parseInt(attachmentData.size);
-      if (sizeInBytes > maxSize) {
+      if (actualSizeInBytes > maxSize) {
         return res.status(400).json({ message: "حجم الملف يتجاوز الحد المسموح (2MB)" });
       }
+      
+      // Check number of existing attachments for this task (max 10)
+      const existingAttachments = await storage.getAttachmentsByTaskId(attachmentData.taskId);
+      if (existingAttachments.length >= 10) {
+        return res.status(400).json({ message: "تم الوصول للحد الأقصى من المرفقات (10)" });
+      }
+      
+      // Update size with actual calculated size
+      attachmentData.size = actualSizeInBytes.toString();
       
       const newAttachment = await storage.createAttachment(attachmentData);
       res.status(201).json(newAttachment);

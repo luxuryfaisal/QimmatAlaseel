@@ -1,8 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import session from "express-session";
 import { storage } from "./storage";
 import { insertOrderSchema, insertNoteSchema, insertTaskSchema, insertTaskNoteSchema, insertAttachmentSchema, insertSettingsSchema, insertSectionSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -17,23 +19,80 @@ const setPinSchema = z.object({
   pin: z.string().length(4)
 });
 
+// Authorization middleware for admin-only routes using session
+const requireAdmin = async (req: any, res: any, next: any) => {
+  // Check session for authenticated user
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "غير مخول للوصول" });
+  }
+  
+  try {
+    // Get user from storage to verify current role
+    const user = await storage.getUser(req.session.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "يجب أن تكون مديراً للوصول لهذه الميزة" });
+    }
+    
+    req.user = { id: user.id, username: user.username, role: user.role };
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "غير مخول للوصول" });
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure session middleware
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-session-secret-change-this-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false, // set to true in production with HTTPS
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'strict' // CSRF protection
+    }
+  }));
+
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
       
       const user = await storage.getUserByUsername(username);
-      if (!user || user.password !== password) {
+      if (!user || !await bcrypt.compare(password, user.password)) {
         return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
       }
+      
+      // Store user session for secure authentication
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.role = user.role;
 
       res.json({ 
         success: true, 
-        user: { id: user.id, username: user.username, role: user.role } 
+        user: { id: user.id, username: user.username, role: user.role }
       });
     } catch (error) {
       res.status(400).json({ message: "خطأ في البيانات المرسلة" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      if (req.session) {
+        req.session.destroy((err: any) => {
+          if (err) {
+            return res.status(500).json({ message: "خطأ في تسجيل الخروج" });
+          }
+          res.clearCookie('connect.sid'); // Clear session cookie
+          res.json({ success: true });
+        });
+      } else {
+        res.json({ success: true });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في تسجيل الخروج" });
     }
   });
 
@@ -422,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management routes
-  app.get("/api/users", async (req, res) => {
+  app.get("/api/users", requireAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       // Don't return passwords
@@ -433,9 +492,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
+      // storage.createUser will handle password hashing
       const newUser = await storage.createUser(userData);
       // Don't return password
       const safeUser = { ...newUser, password: undefined };
@@ -445,10 +505,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", async (req, res) => {
+  app.put("/api/users/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertUserSchema.partial().parse(req.body);
+      
+      // storage.updateUser will handle password hashing if provided
       const updatedUser = await storage.updateUser(id, updateData);
       
       if (!updatedUser) {
@@ -460,6 +522,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(safeUser);
     } catch (error) {
       res.status(400).json({ message: "خطأ في تحديث المستخدم" });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteUser(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "المستخدم غير موجود" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف المستخدم" });
     }
   });
 

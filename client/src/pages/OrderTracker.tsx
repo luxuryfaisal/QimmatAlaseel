@@ -7,7 +7,7 @@ import NoteModal from "../components/NoteModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Save, FileText, Printer, LogOut, User, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare } from "lucide-react";
+import { Loader2, Plus, Save, FileText, Printer, LogOut, User, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell } from "lucide-react";
 import type { Order, Note, Task } from "@shared/schema";
 
 declare global {
@@ -24,6 +24,7 @@ export default function OrderTracker() {
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [currentNote, setCurrentNote] = useState("");
   const [activeTab, setActiveTab] = useState<"orders" | "tasks">("orders");
+  const [taskAlertsShown, setTaskAlertsShown] = useState(false);
 
   // Check authentication on mount
   useEffect(() => {
@@ -257,6 +258,79 @@ export default function OrderTracker() {
       deleteTaskMutation.mutate(taskId);
     }
   };
+
+  // Task reminder functionality with timezone-safe date parsing
+  const getTaskUrgencyLevel = (dueDate: string | null) => {
+    if (!dueDate) return 'none';
+    
+    // Parse dates to local midnight to avoid timezone issues
+    const parseLocalDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+    
+    const today = new Date();
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dueMidnight = parseLocalDate(dueDate);
+    
+    const diffTime = dueMidnight.getTime() - todayMidnight.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'overdue';
+    if (diffDays === 0) return 'due-today';
+    if (diffDays <= 3) return 'due-soon';
+    return 'normal';
+  };
+
+  const getTaskRowClassName = (urgencyLevel: string) => {
+    const baseClass = "hover:bg-accent/50 transition-colors duration-200";
+    switch (urgencyLevel) {
+      case 'overdue':
+        return `${baseClass} bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800`;
+      case 'due-today':
+        return `${baseClass} bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800`;
+      case 'due-soon':
+        return `${baseClass} bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800`;
+      default:
+        return baseClass;
+    }
+  };
+
+  const getUrgencyIcon = (urgencyLevel: string, taskId: string) => {
+    switch (urgencyLevel) {
+      case 'overdue':
+        return <AlertTriangle className="w-4 h-4 text-red-500 ml-1" data-testid={`icon-overdue-${taskId}`} aria-label="مهمة متأخرة" />;
+      case 'due-today':
+        return <Bell className="w-4 h-4 text-orange-500 ml-1" data-testid={`icon-due-today-${taskId}`} aria-label="مهمة مستحقة اليوم" />;
+      case 'due-soon':
+        return <Clock className="w-4 h-4 text-yellow-500 ml-1" data-testid={`icon-due-soon-${taskId}`} aria-label="مهمة مستحقة قريباً" />;
+      default:
+        return null;
+    }
+  };
+
+  // Check for urgent tasks and show toast notifications only on login
+  useEffect(() => {
+    if (isAuthenticated && tasks.length > 0 && !taskAlertsShown) {
+      const overdueTasks = tasks.filter(task => getTaskUrgencyLevel(task.dueDate) === 'overdue');
+      const dueTodayTasks = tasks.filter(task => getTaskUrgencyLevel(task.dueDate) === 'due-today');
+      
+      if (overdueTasks.length > 0) {
+        toast({
+          title: "⚠️ مهام متأخرة",
+          description: `لديك ${overdueTasks.length} مهام متأخرة عن موعد الاستحقاق`,
+          variant: "destructive"
+        });
+        setTaskAlertsShown(true);
+      } else if (dueTodayTasks.length > 0) {
+        toast({
+          title: "📅 مهام مستحقة اليوم",
+          description: `لديك ${dueTodayTasks.length} مهام مستحقة اليوم`,
+        });
+        setTaskAlertsShown(true);
+      }
+    }
+  }, [isAuthenticated, tasks, taskAlertsShown, toast]);
 
   const handleExportPDF = () => {
     const element = document.getElementById('table-container');
@@ -558,16 +632,20 @@ export default function OrderTracker() {
                     </tr>
                   ) : (
                     tasks.map((task: Task) => {
+                      const urgencyLevel = getTaskUrgencyLevel(task.dueDate);
                       return (
-                        <tr key={task.id} className="hover:bg-accent/50 transition-colors duration-200">
+                        <tr key={task.id} className={getTaskRowClassName(urgencyLevel)}>
                           <td className="px-6 py-4">
-                            <Input
-                              type="date"
-                              value={task.dueDate || ""}
-                              onChange={(e) => handleUpdateTask(task.id, 'dueDate', e.target.value)}
-                              className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
-                              data-testid={`input-due-date-${task.id}`}
-                            />
+                            <div className="flex items-center">
+                              <Input
+                                type="date"
+                                value={task.dueDate || ""}
+                                onChange={(e) => handleUpdateTask(task.id, 'dueDate', e.target.value)}
+                                className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                                data-testid={`input-due-date-${task.id}`}
+                              />
+                              {getUrgencyIcon(urgencyLevel, task.id)}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <Input

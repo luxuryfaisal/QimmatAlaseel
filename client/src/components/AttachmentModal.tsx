@@ -7,8 +7,9 @@ import { useState } from "react";
 interface Attachment {
   id: string;
   taskId: string;
-  fileName: string;
-  fileData: string;
+  filename: string;
+  mimeType: string;
+  dataBase64: string;
   size: string;
   createdAt?: string;
 }
@@ -18,7 +19,7 @@ interface AttachmentModalProps {
   onClose: () => void;
   taskId: string;
   attachments: Attachment[];
-  onUpload: (data: { taskId: string; fileName: string; fileData: string; size: string }) => void;
+  onUpload: (data: { taskId: string; filename: string; mimeType: string; dataBase64: string; size: string }) => void;
   onDelete: (id: string) => void;
   canEdit: boolean;
 }
@@ -61,8 +62,9 @@ export default function AttachmentModal({
         const base64Data = reader.result as string;
         onUpload({
           taskId,
-          fileName: file.name,
-          fileData: base64Data,
+          filename: file.name,
+          mimeType: file.type,
+          dataBase64: base64Data,
           size: file.size.toString()
         });
         setUploading(false);
@@ -77,8 +79,8 @@ export default function AttachmentModal({
 
   const handleDownload = (attachment: Attachment) => {
     const link = document.createElement('a');
-    link.href = attachment.fileData;
-    link.download = attachment.fileName;
+    link.href = attachment.dataBase64;
+    link.download = attachment.filename;
     link.click();
   };
 
@@ -143,15 +145,15 @@ export default function AttachmentModal({
               taskAttachments.map((attachment) => (
                 <div key={attachment.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
                   <div className="flex items-center space-x-reverse space-x-3">
-                    {attachment.fileData.startsWith('data:image/') && (
+                    {attachment.dataBase64.startsWith('data:image/') && (
                       <img
-                        src={attachment.fileData}
-                        alt={attachment.fileName}
+                        src={attachment.dataBase64}
+                        alt={attachment.filename}
                         className="w-12 h-12 object-cover rounded border"
                       />
                     )}
                     <div>
-                      <p className="font-medium text-sm">{attachment.fileName}</p>
+                      <p className="font-medium text-sm">{attachment.filename}</p>
                       <p className="text-xs text-muted-foreground">
                         {Math.round(parseInt(attachment.size) / 1024)} KB
                       </p>

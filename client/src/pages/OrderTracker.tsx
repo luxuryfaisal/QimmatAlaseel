@@ -24,6 +24,7 @@ export default function OrderTracker() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [currentNote, setCurrentNote] = useState("");
+  const [currentTaskId, setCurrentTaskId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"orders" | "tasks">("orders");
   const [taskAlertsShown, setTaskAlertsShown] = useState(false);
   const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
@@ -81,6 +82,28 @@ export default function OrderTracker() {
       return notesArrays.flat();
     },
     enabled: isAuthenticated && orders.length > 0
+  });
+
+  // Fetch tasks first
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    enabled: isAuthenticated
+  });
+
+  // Fetch notes for all tasks
+  const { data: allTaskNotes = [] } = useQuery({
+    queryKey: ['/api/tasks/notes'],
+    queryFn: async () => {
+      if (!tasks.length) return [];
+      
+      const notesPromises = tasks.map((task: Task) => 
+        fetch(`/api/tasks/${task.id}/notes`).then(res => res.json())
+      );
+      
+      const notesArrays = await Promise.all(notesPromises);
+      return notesArrays.flat();
+    },
+    enabled: isAuthenticated && tasks.length > 0
   });
 
   // Create order mutation
@@ -153,11 +176,35 @@ export default function OrderTracker() {
     }
   });
 
-  // Fetch tasks
-  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
-    queryKey: ['/api/tasks'],
-    enabled: isAuthenticated
+  // Task note mutations
+  const createTaskNoteMutation = useMutation({
+    mutationFn: async (noteData: { taskId: string; content: string }) => {
+      const response = await apiRequest('POST', '/api/task-notes', noteData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks/notes'] });
+      toast({
+        title: "تم حفظ ملاحظة المهمة",
+        description: "تم حفظ ملاحظة المهمة بنجاح"
+      });
+    }
   });
+
+  const updateTaskNoteMutation = useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const response = await apiRequest('PUT', `/api/task-notes/${id}`, { content });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks/notes'] });
+      toast({
+        title: "تم تحديث ملاحظة المهمة",
+        description: "تم تحديث ملاحظة المهمة بنجاح"
+      });
+    }
+  });
+
 
   // Create task mutation
   const createTaskMutation = useMutation({
@@ -314,8 +361,17 @@ export default function OrderTracker() {
 
   const handleOpenNoteModal = (orderId: string) => {
     setCurrentOrderId(orderId);
+    setCurrentTaskId(""); // Clear task ID
     const orderNote = allNotes.find((note: Note) => note.orderId === orderId);
     setCurrentNote(orderNote?.content || "");
+    setNoteModalOpen(true);
+  };
+
+  const handleOpenTaskNoteModal = (taskId: string) => {
+    setCurrentTaskId(taskId);
+    setCurrentOrderId(""); // Clear order ID
+    const taskNote = allTaskNotes.find((note: Note) => note.taskId === taskId);
+    setCurrentNote(taskNote?.content || "");
     setNoteModalOpen(true);
   };
 
@@ -328,16 +384,32 @@ export default function OrderTracker() {
       });
       return;
     }
-    const existingNote = allNotes.find((note: Note) => note.orderId === currentOrderId);
+
+    // Handle order notes
+    if (currentOrderId) {
+      const existingNote = allNotes.find((note: Note) => note.orderId === currentOrderId);
+      
+      if (existingNote) {
+        updateNoteMutation.mutate({ id: existingNote.id, content: currentNote });
+      } else if (currentNote.trim()) {
+        createNoteMutation.mutate({ orderId: currentOrderId, content: currentNote });
+      }
+    }
     
-    if (existingNote) {
-      updateNoteMutation.mutate({ id: existingNote.id, content: currentNote });
-    } else if (currentNote.trim()) {
-      createNoteMutation.mutate({ orderId: currentOrderId, content: currentNote });
+    // Handle task notes
+    if (currentTaskId) {
+      const existingNote = allTaskNotes.find((note: Note) => note.taskId === currentTaskId);
+      
+      if (existingNote) {
+        updateTaskNoteMutation.mutate({ id: existingNote.id, content: currentNote });
+      } else if (currentNote.trim()) {
+        createTaskNoteMutation.mutate({ taskId: currentTaskId, content: currentNote });
+      }
     }
     
     setNoteModalOpen(false);
     setCurrentOrderId("");
+    setCurrentTaskId("");
     setCurrentNote("");
   };
 
@@ -755,7 +827,7 @@ export default function OrderTracker() {
                     </th>
                     <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
                       <FileText className="w-4 h-4 inline ml-1" />
-                      حالة المهمة
+                      الملاحظات
                     </th>
                     <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
                       <Settings className="w-4 h-4 inline ml-1" />
@@ -811,15 +883,20 @@ export default function OrderTracker() {
                             />
                           </td>
                           <td className="px-6 py-4">
-                            <Input
-                              type="text"
-                              value={task.taskStatus || ""}
-                              onChange={(e) => handleUpdateTask(task.id, 'taskStatus', e.target.value)}
-                              className="bg-transparent border-none rtl-input focus:ring-0"
-                              placeholder="حالة المهمة"
-                              disabled={!canEdit()}
-                              data-testid={`input-task-status-${task.id}`}
-                            />
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-primary hover:text-primary/80 p-0 h-auto"
+                              onClick={() => handleOpenTaskNoteModal(task.id)}
+                              data-testid={`button-task-note-${task.id}`}
+                            >
+                              {(() => {
+                                const taskNote = allTaskNotes.find((note: Note) => note.taskId === task.id);
+                                return taskNote && taskNote.content && taskNote.content.trim() 
+                                  ? 'عرض الملاحظة' 
+                                  : (canEdit() ? 'ملاحظة' : 'عرض الملاحظة');
+                              })()}
+                            </Button>
                           </td>
                           <td className="px-6 py-4">
                             <Input
@@ -900,10 +977,12 @@ export default function OrderTracker() {
         onClose={() => {
           setNoteModalOpen(false);
           setCurrentOrderId("");
+          setCurrentTaskId("");
           setCurrentNote("");
         }}
         onSave={handleSaveNote}
         orderId={currentOrderId}
+        taskId={currentTaskId}
         note={currentNote}
         onNoteChange={setCurrentNote}
       />

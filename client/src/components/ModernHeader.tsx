@@ -1,6 +1,30 @@
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Settings, Moon, Sun } from "lucide-react";
-import logoUrl from '@assets/generated_images/Picsart_25-09-19_00-28-14-307.png';
+import { useState } from "react";
+
+// Safe ESM logo import with fallback
+const logos = import.meta.glob('@assets/generated_images/Picsart_25-09-19_00-28-14-307.png', { 
+  eager: true, 
+  query: '?url',
+  import: 'default'
+});
+const logoUrl = Object.values(logos)[0] as string | undefined;
+
+// Log warning only if asset is missing (avoid noise during HMR)
+if (!logoUrl && !(window as any).__logoWarningShown) {
+  console.warn('Logo asset not found, will use fallback');
+  (window as any).__logoWarningShown = true;
+}
+
+// Fallback logo component (hoisted to avoid recreation on each render)
+const LogoFallback = () => (
+  <div 
+    className="h-16 w-16 bg-white/20 rounded-lg flex items-center justify-center text-white font-bold text-xl"
+    data-testid="img-company-logo-fallback"
+  >
+    قأ
+  </div>
+);
 
 interface ModernHeaderProps {
   username: string;
@@ -19,6 +43,8 @@ export default function ModernHeader({
   isDarkMode,
   onToggleDarkMode 
 }: ModernHeaderProps) {
+  const [imageError, setImageError] = useState(false);
+
   return (
     <div className="relative overflow-hidden">
       {/* Background Gradient */}
@@ -36,12 +62,17 @@ export default function ModernHeader({
         <div className="flex items-center justify-between mb-6">
           {/* Logo and Company Name */}
           <div className="flex items-center space-x-reverse space-x-4">
-            <img 
-              src={logoUrl} 
-              alt="شعار شركة قمة الأصيل" 
-              className="h-16 w-auto object-contain"
-              data-testid="img-company-logo"
-            />
+            {logoUrl && !imageError ? (
+              <img 
+                src={logoUrl} 
+                alt="شعار شركة قمة الأصيل" 
+                className="h-16 w-auto object-contain"
+                data-testid="img-company-logo"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <LogoFallback />
+            )}
             <div className="text-right">
               <h1 className="text-3xl font-bold text-white mb-1" data-testid="text-company-name">
                 شركة قمة الأصيل

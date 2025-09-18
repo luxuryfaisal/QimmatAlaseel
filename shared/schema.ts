@@ -27,6 +27,17 @@ export const notes = pgTable("notes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const tasks = pgTable("tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskName: text("task_name").notNull(),
+  taskType: text("task_type"),
+  lastInquiry: text("last_inquiry"),
+  taskStatus: text("task_status").default("قيد المراجعة"),
+  dueDate: text("due_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -44,9 +55,17 @@ export const insertNoteSchema = createInsertSchema(notes).omit({
   updatedAt: true,
 });
 
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertNote = z.infer<typeof insertNoteSchema>;
 export type Note = typeof notes.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;

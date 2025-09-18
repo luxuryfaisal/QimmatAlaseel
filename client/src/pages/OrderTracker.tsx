@@ -362,7 +362,7 @@ export default function OrderTracker() {
                             onClick={() => handleOpenNoteModal(order.id)}
                             data-testid={`button-note-${order.id}`}
                           >
-                            {orderNote ? 'عرض الملاحظة' : 'للتفاصيل اضغط هنا'}
+                            {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'للتفاصيل اضغط هنا'}
                           </Button>
                         </td>
                         <td className="px-6 py-4">

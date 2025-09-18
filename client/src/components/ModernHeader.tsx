@@ -84,7 +84,10 @@ export default function ModernHeader({
                 <span className="font-semibold" data-testid="text-username-header">{username}</span>
               </div>
               <span className="text-xs text-blue-200" data-testid="text-user-role-header">
-                {userRole === 'admin' ? 'مدير النظام' : userRole === 'viewer' ? 'مشاهد' : 'زائر'}
+                {userRole === 'admin' ? 'مدير النظام' : 
+                 userRole === 'editor' ? 'محرر' : 
+                 userRole === 'viewer' ? 'مشاهد' : 
+                 userRole === 'guest' ? 'زائر' : 'مستخدم'}
               </span>
             </div>
 

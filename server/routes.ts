@@ -6,6 +6,15 @@ import { insertOrderSchema, insertNoteSchema, insertTaskSchema, insertTaskNoteSc
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
+// Extend session data types
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+    username?: string;
+    role?: string;
+  }
+}
+
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1)
@@ -18,6 +27,51 @@ const pinSchema = z.object({
 const setPinSchema = z.object({
   pin: z.string().length(4)
 });
+
+// Authorization middleware for any authenticated user (including guests)
+const requireAuth = async (req: any, res: any, next: any) => {
+  // Check session for authenticated user
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "غير مخول للوصول" });
+  }
+  
+  try {
+    // For guest users, session contains the info
+    if (req.session.userId.startsWith('guest_')) {
+      req.user = { 
+        id: req.session.userId, 
+        username: req.session.username || 'زائر', 
+        role: 'guest' 
+      };
+      next();
+    } else {
+      // For regular users, get from storage
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ message: "غير مخول للوصول" });
+      }
+      
+      req.user = { id: user.id, username: user.username, role: user.role || 'viewer' };
+      next();
+    }
+  } catch (error) {
+    return res.status(401).json({ message: "غير مخول للوصول" });
+  }
+};
+
+// Middleware to check if user can perform write operations (only admin and editor)
+const requireWrite = async (req: any, res: any, next: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "غير مخول للوصول" });
+  }
+  
+  // Only admin and editor roles can perform write operations
+  if (req.user.role !== 'admin' && req.user.role !== 'editor') {
+    return res.status(403).json({ message: "ليس لديك صلاحية للتعديل - للمشاهدة فقط" });
+  }
+  
+  next();
+};
 
 // Authorization middleware for admin-only routes using session
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -64,10 +118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
       }
       
-      // Store user session for secure authentication
+      // Store user session for secure authentication  
       req.session.userId = user.id;
       req.session.username = user.username;
-      req.session.role = user.role;
+      req.session.role = user.role || undefined;
 
       res.json({ 
         success: true, 
@@ -96,8 +150,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/guest", async (req, res) => {
+    try {
+      // Check if guest access is allowed
+      const settings = await storage.getSettings();
+      if (!settings || settings.allowGuest !== 'true') {
+        return res.status(403).json({ message: "دخول الزائر غير مسموح حالياً" });
+      }
+
+      // Create guest session
+      const guestId = `guest_${Date.now()}`;
+      req.session.userId = guestId;
+      req.session.username = "زائر";
+      req.session.role = "guest";
+
+      res.json({
+        success: true,
+        user: {
+          id: guestId,
+          username: "زائر",
+          role: "guest"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في دخول الزائر" });
+    }
+  });
+
   // Order routes
-  app.get("/api/orders", async (req, res) => {
+  app.get("/api/orders", requireAuth, async (req, res) => {
     try {
       const orders = await storage.getAllOrders();
       res.json(orders);
@@ -106,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/orders", async (req, res) => {
+  app.post("/api/orders", requireAuth, requireWrite, async (req, res) => {
     try {
       const orderData = insertOrderSchema.parse(req.body);
       const newOrder = await storage.createOrder(orderData);
@@ -116,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/orders/:id", async (req, res) => {
+  app.put("/api/orders/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertOrderSchema.partial().parse(req.body);
@@ -132,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/orders/:id", async (req, res) => {
+  app.delete("/api/orders/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteOrder(id);
@@ -148,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Note routes
-  app.get("/api/orders/:orderId/notes", async (req, res) => {
+  app.get("/api/orders/:orderId/notes", requireAuth, async (req, res) => {
     try {
       const { orderId } = req.params;
       const notes = await storage.getNotesByOrderId(orderId);
@@ -158,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/notes", async (req, res) => {
+  app.post("/api/notes", requireAuth, requireWrite, async (req, res) => {
     try {
       const noteData = insertNoteSchema.parse(req.body);
       const newNote = await storage.createNote(noteData);
@@ -168,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/notes/:id", async (req, res) => {
+  app.put("/api/notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertNoteSchema.partial().parse(req.body);
@@ -184,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/notes/:id", async (req, res) => {
+  app.delete("/api/notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteNote(id);
@@ -200,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Task routes
-  app.get("/api/tasks", async (req, res) => {
+  app.get("/api/tasks", requireAuth, async (req, res) => {
     try {
       const tasks = await storage.getAllTasks();
       res.json(tasks);
@@ -209,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tasks", async (req, res) => {
+  app.post("/api/tasks", requireAuth, requireWrite, async (req, res) => {
     try {
       const taskData = insertTaskSchema.parse(req.body);
       const newTask = await storage.createTask(taskData);
@@ -219,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/tasks/:id", async (req, res) => {
+  app.put("/api/tasks/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertTaskSchema.partial().parse(req.body);
@@ -235,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/tasks/:id", async (req, res) => {
+  app.delete("/api/tasks/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTask(id);
@@ -250,25 +331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Guest authentication route
-  app.post("/api/auth/guest", async (req, res) => {
-    try {
-      const settings = await storage.getSettings();
-      if (!settings || settings.allowGuest !== "true") {
-        return res.status(403).json({ message: "دخول الزائر غير متاح" });
-      }
-
-      res.json({ 
-        success: true, 
-        user: { id: "guest", username: "زائر", role: "guest" } 
-      });
-    } catch (error) {
-      res.status(500).json({ message: "خطأ في دخول الزائر" });
-    }
-  });
 
   // Task Notes routes
-  app.get("/api/tasks/:taskId/notes", async (req, res) => {
+  app.get("/api/tasks/:taskId/notes", requireAuth, async (req, res) => {
     try {
       const { taskId } = req.params;
       const notes = await storage.getTaskNotesByTaskId(taskId);
@@ -278,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/task-notes", async (req, res) => {
+  app.post("/api/task-notes", requireAuth, requireWrite, async (req, res) => {
     try {
       const noteData = insertTaskNoteSchema.parse(req.body);
       const newNote = await storage.createTaskNote(noteData);
@@ -288,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/task-notes/:id", async (req, res) => {
+  app.put("/api/task-notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertTaskNoteSchema.partial().parse(req.body);
@@ -304,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/task-notes/:id", async (req, res) => {
+  app.delete("/api/task-notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTaskNote(id);
@@ -320,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Attachments routes
-  app.get("/api/tasks/:taskId/attachments", async (req, res) => {
+  app.get("/api/tasks/:taskId/attachments", requireAuth, async (req, res) => {
     try {
       const { taskId } = req.params;
       const attachments = await storage.getAttachmentsByTaskId(taskId);
@@ -330,17 +395,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/attachments", async (req, res) => {
+  app.post("/api/attachments", requireAuth, requireWrite, async (req, res) => {
     try {
       const attachmentData = insertAttachmentSchema.parse(req.body);
       
       // Validate file type (must be image)
-      if (!attachmentData.fileData.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
+      if (!attachmentData.dataBase64.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/)) {
         return res.status(400).json({ message: "نوع الملف غير مدعوم - الصور فقط" });
       }
       
       // Calculate actual file size from base64 data
-      const base64Data = attachmentData.fileData.split(',')[1];
+      const base64Data = attachmentData.dataBase64.split(',')[1];
       const actualSizeInBytes = Math.floor((base64Data.length * 3) / 4);
       
       // Validate file size (2MB limit based on actual data)
@@ -365,7 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/attachments/:id", async (req, res) => {
+  app.delete("/api/attachments/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteAttachment(id);

@@ -4,6 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import AuthModal from "../components/AuthModal";
 import NoteModal from "../components/NoteModal";
+import AttachmentModal from "../components/AttachmentModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -25,6 +26,8 @@ export default function OrderTracker() {
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [currentNote, setCurrentNote] = useState("");
   const [currentTaskId, setCurrentTaskId] = useState<string>("");
+  const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
+  const [currentAttachmentTaskId, setCurrentAttachmentTaskId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"orders" | "tasks">("orders");
   const [taskAlertsShown, setTaskAlertsShown] = useState(false);
   const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
@@ -102,6 +105,22 @@ export default function OrderTracker() {
       
       const notesArrays = await Promise.all(notesPromises);
       return notesArrays.flat();
+    },
+    enabled: isAuthenticated && tasks.length > 0
+  });
+
+  // Fetch attachments for all tasks
+  const { data: allTaskAttachments = [] } = useQuery({
+    queryKey: ['/api/tasks/attachments'],
+    queryFn: async () => {
+      if (!tasks.length) return [];
+      
+      const attachmentsPromises = tasks.map((task: Task) => 
+        fetch(`/api/tasks/${task.id}/attachments`).then(res => res.json())
+      );
+      
+      const attachmentsArrays = await Promise.all(attachmentsPromises);
+      return attachmentsArrays.flat();
     },
     enabled: isAuthenticated && tasks.length > 0
   });
@@ -201,6 +220,35 @@ export default function OrderTracker() {
       toast({
         title: "تم تحديث ملاحظة المهمة",
         description: "تم تحديث ملاحظة المهمة بنجاح"
+      });
+    }
+  });
+
+  // Attachment mutations
+  const createAttachmentMutation = useMutation({
+    mutationFn: async (attachmentData: { taskId: string; fileName: string; fileData: string; size: string }) => {
+      const response = await apiRequest('POST', '/api/attachments', attachmentData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks/attachments'] });
+      toast({
+        title: "تم رفع المرفق",
+        description: "تم رفع المرفق بنجاح"
+      });
+    }
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/attachments/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks/attachments'] });
+      toast({
+        title: "تم حذف المرفق",
+        description: "تم حذف المرفق بنجاح"
       });
     }
   });
@@ -373,6 +421,11 @@ export default function OrderTracker() {
     const taskNote = allTaskNotes.find((note: Note) => note.taskId === taskId);
     setCurrentNote(taskNote?.content || "");
     setNoteModalOpen(true);
+  };
+
+  const handleOpenAttachmentModal = (taskId: string) => {
+    setCurrentAttachmentTaskId(taskId);
+    setAttachmentModalOpen(true);
   };
 
   const handleSaveNote = () => {
@@ -830,6 +883,10 @@ export default function OrderTracker() {
                       الملاحظات
                     </th>
                     <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
+                      <Package className="w-4 h-4 inline ml-1" />
+                      المرفقات
+                    </th>
+                    <th className="px-6 py-4 text-right text-sm font-medium text-primary-foreground">
                       <Settings className="w-4 h-4 inline ml-1" />
                       نوع المهمة
                     </th>
@@ -843,14 +900,14 @@ export default function OrderTracker() {
                 <tbody className="divide-y divide-border">
                   {isLoadingTasks ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center">
+                      <td colSpan={7} className="px-6 py-8 text-center">
                         <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                         <div className="text-muted-foreground">جاري تحميل المهام...</div>
                       </td>
                     </tr>
                   ) : tasks.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
                         لا توجد مهام حالياً
                       </td>
                     </tr>
@@ -895,6 +952,22 @@ export default function OrderTracker() {
                                 return taskNote && taskNote.content && taskNote.content.trim() 
                                   ? 'عرض الملاحظة' 
                                   : (canEdit() ? 'ملاحظة' : 'عرض الملاحظة');
+                              })()}
+                            </Button>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-primary hover:text-primary/80 p-0 h-auto"
+                              onClick={() => handleOpenAttachmentModal(task.id)}
+                              data-testid={`button-task-attachment-${task.id}`}
+                            >
+                              {(() => {
+                                const taskAttachments = allTaskAttachments.filter((att: any) => att.taskId === task.id);
+                                return taskAttachments.length > 0 
+                                  ? `مرفقات (${taskAttachments.length})` 
+                                  : 'مرفقات';
                               })()}
                             </Button>
                           </td>
@@ -985,6 +1058,20 @@ export default function OrderTracker() {
         taskId={currentTaskId}
         note={currentNote}
         onNoteChange={setCurrentNote}
+      />
+
+      {/* Attachment Modal */}
+      <AttachmentModal
+        isOpen={attachmentModalOpen}
+        onClose={() => {
+          setAttachmentModalOpen(false);
+          setCurrentAttachmentTaskId("");
+        }}
+        taskId={currentAttachmentTaskId}
+        attachments={allTaskAttachments}
+        onUpload={createAttachmentMutation.mutate}
+        onDelete={deleteAttachmentMutation.mutate}
+        canEdit={canEdit()}
       />
 
       {/* PIN Modal */}

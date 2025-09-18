@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertOrderSchema, insertNoteSchema } from "@shared/schema";
+import { insertOrderSchema, insertNoteSchema, insertTaskSchema } from "@shared/schema";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -129,6 +129,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في حذف الملاحظة" });
+    }
+  });
+
+  // Task routes
+  app.get("/api/tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getAllTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في استرجاع المهام" });
+    }
+  });
+
+  app.post("/api/tasks", async (req, res) => {
+    try {
+      const taskData = insertTaskSchema.parse(req.body);
+      const newTask = await storage.createTask(taskData);
+      res.status(201).json(newTask);
+    } catch (error) {
+      res.status(400).json({ message: "خطأ في إنشاء المهمة" });
+    }
+  });
+
+  app.put("/api/tasks/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = insertTaskSchema.partial().parse(req.body);
+      const updatedTask = await storage.updateTask(id, updateData);
+      
+      if (!updatedTask) {
+        return res.status(404).json({ message: "المهمة غير موجودة" });
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      res.status(400).json({ message: "خطأ في تحديث المهمة" });
+    }
+  });
+
+  app.delete("/api/tasks/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTask(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "المهمة غير موجودة" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في حذف المهمة" });
     }
   });
 

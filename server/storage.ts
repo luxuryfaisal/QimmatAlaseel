@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Order, type InsertOrder, type Note, type InsertNote } from "@shared/schema";
+import { type User, type InsertUser, type Order, type InsertOrder, type Note, type InsertNote, type Task, type InsertTask } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -20,17 +20,26 @@ export interface IStorage {
   createNote(note: InsertNote): Promise<Note>;
   updateNote(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
   deleteNote(id: string): Promise<boolean>;
+
+  // Task methods
+  getAllTasks(): Promise<Task[]>;
+  getTask(id: string): Promise<Task | undefined>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private orders: Map<string, Order>;
   private notes: Map<string, Note>;
+  private tasks: Map<string, Task>;
 
   constructor() {
     this.users = new Map();
     this.orders = new Map();
     this.notes = new Map();
+    this.tasks = new Map();
     
     // Initialize with default admin user
     const adminUser: User = {
@@ -66,6 +75,28 @@ export class MemStorage implements IStorage {
         updatedAt: new Date()
       };
       this.orders.set(order.id, order);
+    });
+
+    // Initialize with sample tasks
+    const sampleTasks = [
+      { taskName: "مراجعة التقارير الشهرية", taskType: "إدارية", dueDate: "2025-09-25" },
+      { taskName: "صيانة الأجهزة الكهربائية", taskType: "صيانة", dueDate: "2025-09-30" },
+      { taskName: "تحديث قاعدة البيانات", taskType: "تقنية", dueDate: "2025-10-01" },
+      { taskName: "اجتماع الفريق الأسبوعي", taskType: "اجتماع", dueDate: "2025-09-20" },
+    ];
+
+    sampleTasks.forEach(taskData => {
+      const task: Task = {
+        id: randomUUID(),
+        taskName: taskData.taskName,
+        taskType: taskData.taskType,
+        lastInquiry: "",
+        taskStatus: "قيد المراجعة",
+        dueDate: taskData.dueDate,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.tasks.set(task.id, task);
     });
   }
 
@@ -174,6 +205,53 @@ export class MemStorage implements IStorage {
 
   async deleteNote(id: string): Promise<boolean> {
     return this.notes.delete(id);
+  }
+
+  // Task methods
+  async getAllTasks(): Promise<Task[]> {
+    return Array.from(this.tasks.values()).sort((a, b) => {
+      const dateB = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateA = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return dateA - dateB;
+    });
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    return this.tasks.get(id);
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const id = randomUUID();
+    const now = new Date();
+    const task: Task = { 
+      id,
+      taskName: insertTask.taskName,
+      taskType: insertTask.taskType || null,
+      lastInquiry: insertTask.lastInquiry || null,
+      taskStatus: insertTask.taskStatus || "قيد المراجعة",
+      dueDate: insertTask.dueDate || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.tasks.set(id, task);
+    return task;
+  }
+
+  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+    const existingTask = this.tasks.get(id);
+    if (!existingTask) return undefined;
+
+    const updatedTask: Task = {
+      ...existingTask,
+      ...updateData,
+      updatedAt: new Date()
+    };
+    this.tasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    return this.tasks.delete(id);
   }
 }
 

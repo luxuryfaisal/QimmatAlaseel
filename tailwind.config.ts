@@ -41,6 +41,10 @@ export default {
           DEFAULT: "var(--destructive)",
           foreground: "var(--destructive-foreground)",
         },
+        gold: {
+          "500": "var(--gold-500)",
+          "600": "var(--gold-600)",
+        },
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",

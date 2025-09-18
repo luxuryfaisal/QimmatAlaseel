@@ -7,7 +7,8 @@ interface NoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
-  orderId: string;
+  orderId?: string;
+  taskId?: string;
   note: string;
   onNoteChange: (note: string) => void;
 }
@@ -17,6 +18,7 @@ export default function NoteModal({
   onClose,
   onSave,
   orderId,
+  taskId,
   note,
   onNoteChange
 }: NoteModalProps) {
@@ -33,7 +35,7 @@ export default function NoteModal({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-foreground flex items-center">
               <FileText className="w-5 h-5 ml-2" />
-              ملاحظة الطلب
+              {taskId ? 'ملاحظة المهمة' : 'ملاحظة الطلب'}
             </h3>
             <Button
               variant="ghost"
@@ -48,7 +50,7 @@ export default function NoteModal({
           
           <div className="mb-4">
             <label className="block text-sm font-medium text-foreground mb-2">
-              رقم الطلب: <span className="text-primary font-bold" data-testid="text-modal-order-id">{orderId}</span>
+              {taskId ? 'رقم المهمة:' : 'رقم الطلب:'} <span className="text-primary font-bold" data-testid={taskId ? "text-modal-task-id" : "text-modal-order-id"}>{taskId || orderId}</span>
             </label>
             <Textarea
               value={note}

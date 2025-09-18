@@ -7,8 +7,8 @@ import NoteModal from "../components/NoteModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Save, FileText, Printer, LogOut, User, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell } from "lucide-react";
-import type { Order, Note, Task } from "@shared/schema";
+import { Loader2, Plus, Save, FileText, Printer, LogOut, User as UserIcon, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell } from "lucide-react";
+import type { Order, Note, Task, User } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -20,6 +20,7 @@ export default function OrderTracker() {
   const { toast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState("");
+  const [userRole, setUserRole] = useState<string>("");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [currentNote, setCurrentNote] = useState("");
@@ -30,12 +31,16 @@ export default function OrderTracker() {
   useEffect(() => {
     const authData = localStorage.getItem('orderTrackerAuth');
     if (authData) {
-      const { username, timestamp } = JSON.parse(authData);
+      const { username, role, timestamp } = JSON.parse(authData);
       const hoursSinceLogin = (Date.now() - timestamp) / (1000 * 60 * 60);
       
-      if (hoursSinceLogin < 24) {
+      if (hoursSinceLogin < 24 && role) {
         setIsAuthenticated(true);
         setCurrentUser(username);
+        setUserRole(role);
+      } else {
+        // Clear invalid or old sessions
+        localStorage.removeItem('orderTrackerAuth');
       }
     }
   }, []);
@@ -179,11 +184,15 @@ export default function OrderTracker() {
     }
   });
 
-  const handleLogin = (username: string) => {
+  // User interface imported from shared schema
+
+  const handleLogin = (user: User) => {
     setIsAuthenticated(true);
-    setCurrentUser(username);
+    setCurrentUser(user.username || '');
+    setUserRole(user.role || 'viewer');
     localStorage.setItem('orderTrackerAuth', JSON.stringify({
-      username,
+      username: user.username || '',
+      role: user.role || 'viewer',
       timestamp: Date.now()
     }));
   };
@@ -192,13 +201,27 @@ export default function OrderTracker() {
     localStorage.removeItem('orderTrackerAuth');
     setIsAuthenticated(false);
     setCurrentUser('');
+    setUserRole('');
     toast({
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح"
     });
   };
 
+  // Permission helpers
+  const canEdit = () => userRole === 'admin';
+  const canDelete = () => userRole === 'admin';
+  const isGuest = () => userRole === 'guest';
+
   const handleAddRow = () => {
+    if (!canEdit()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية إضافة طلبات جديدة"
+      });
+      return;
+    }
     createOrderMutation.mutate({
       orderNumber: `ORD-${Date.now()}`,
       partNumber: "",
@@ -208,10 +231,26 @@ export default function OrderTracker() {
   };
 
   const handleUpdateOrder = (orderId: string, field: keyof Order, value: string) => {
+    if (!canEdit()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية تعديل الطلبات"
+      });
+      return;
+    }
     updateOrderMutation.mutate({ id: orderId, [field]: value });
   };
 
   const handleDeleteOrder = (orderId: string) => {
+    if (!canDelete()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية حذف الطلبات"
+      });
+      return;
+    }
     if (confirm('هل أنت متأكد من حذف هذا الطلب؟')) {
       deleteOrderMutation.mutate(orderId);
     }
@@ -225,6 +264,14 @@ export default function OrderTracker() {
   };
 
   const handleSaveNote = () => {
+    if (!canEdit()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية حفظ الملاحظات"
+      });
+      return;
+    }
     const existingNote = allNotes.find((note: Note) => note.orderId === currentOrderId);
     
     if (existingNote) {
@@ -240,6 +287,14 @@ export default function OrderTracker() {
 
   // Task handlers
   const handleAddTask = () => {
+    if (!canEdit()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية إضافة مهام جديدة"
+      });
+      return;
+    }
     createTaskMutation.mutate({
       taskName: `مهمة جديدة - ${Date.now()}`,
       taskType: "",
@@ -250,10 +305,26 @@ export default function OrderTracker() {
   };
 
   const handleUpdateTask = (taskId: string, field: keyof Task, value: string) => {
+    if (!canEdit()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية تعديل المهام"
+      });
+      return;
+    }
     updateTaskMutation.mutate({ id: taskId, [field]: value });
   };
 
   const handleDeleteTask = (taskId: string) => {
+    if (!canDelete()) {
+      toast({
+        variant: "destructive",
+        title: "غير مسموح",
+        description: "لا تملك صلاحية حذف المهام"
+      });
+      return;
+    }
     if (confirm('هل أنت متأكد من حذف هذه المهمة؟')) {
       deleteTaskMutation.mutate(taskId);
     }
@@ -386,10 +457,19 @@ export default function OrderTracker() {
             
             <div className="flex items-center space-x-reverse space-x-4">
               <div className="flex items-center space-x-reverse space-x-2">
-                <User className="w-4 h-4 text-muted-foreground" />
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
                   مرحباً، <span className="font-medium text-foreground">{currentUser}</span>
                 </span>
+                {userRole && (
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    userRole === 'admin' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                    userRole === 'guest' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
+                    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                  }`}>
+                    {userRole === 'admin' ? 'مدير' : userRole === 'guest' ? 'زائر' : 'مشاهد'}
+                  </span>
+                )}
               </div>
               <Button 
                 variant="destructive" 
@@ -478,7 +558,7 @@ export default function OrderTracker() {
               </h2>
               <Button 
                 onClick={activeTab === "orders" ? handleAddRow : handleAddTask} 
-                disabled={activeTab === "orders" ? createOrderMutation.isPending : createTaskMutation.isPending}
+                disabled={!canEdit() || (activeTab === "orders" ? createOrderMutation.isPending : createTaskMutation.isPending)}
                 data-testid={activeTab === "orders" ? "button-add-row" : "button-add-task"}
               >
                 {(activeTab === "orders" ? createOrderMutation.isPending : createTaskMutation.isPending) ? (
@@ -540,6 +620,7 @@ export default function OrderTracker() {
                               value={order.lastInquiry || ""}
                               onChange={(e) => handleUpdateOrder(order.id, 'lastInquiry', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                              disabled={!canEdit()}
                               data-testid={`input-date-${order.id}`}
                             />
                           </td>
@@ -550,6 +631,7 @@ export default function OrderTracker() {
                               onChange={(e) => handleUpdateOrder(order.id, 'status', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
                               placeholder="حالة الطلب"
+                              disabled={!canEdit()}
                               data-testid={`input-status-${order.id}`}
                             />
                           </td>
@@ -560,6 +642,7 @@ export default function OrderTracker() {
                               onChange={(e) => handleUpdateOrder(order.id, 'partNumber', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
                               placeholder="رقم القطعة"
+                              disabled={!canEdit()}
                               data-testid={`input-part-${order.id}`}
                             />
                           </td>
@@ -569,6 +652,7 @@ export default function OrderTracker() {
                               value={order.orderNumber}
                               onChange={(e) => handleUpdateOrder(order.id, 'orderNumber', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
+                              disabled={!canEdit()}
                               data-testid={`input-order-${order.id}`}
                             />
                           </td>
@@ -581,13 +665,14 @@ export default function OrderTracker() {
                                 onClick={() => handleOpenNoteModal(order.id)}
                                 data-testid={`button-note-${order.id}`}
                               >
-                                {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : 'ملاحظة'}
+                                {orderNote && orderNote.content && orderNote.content.trim() ? 'عرض الملاحظة' : (canEdit() ? 'ملاحظة' : 'عرض الملاحظة')}
                               </Button>
                               <Button
                                 variant="link"
                                 size="sm"
                                 className="text-destructive hover:text-destructive/80 p-0 h-auto"
                                 onClick={() => handleDeleteOrder(order.id)}
+                                disabled={!canDelete()}
                                 data-testid={`button-delete-${order.id}`}
                               >
                                 حذف
@@ -653,6 +738,7 @@ export default function OrderTracker() {
                                 value={task.dueDate || ""}
                                 onChange={(e) => handleUpdateTask(task.id, 'dueDate', e.target.value)}
                                 className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                                disabled={!canEdit()}
                                 data-testid={`input-due-date-${task.id}`}
                               />
                               {getUrgencyIcon(urgencyLevel, task.id)}
@@ -664,6 +750,7 @@ export default function OrderTracker() {
                               value={task.lastInquiry || ""}
                               onChange={(e) => handleUpdateTask(task.id, 'lastInquiry', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0 cursor-pointer"
+                              disabled={!canEdit()}
                               data-testid={`input-last-inquiry-${task.id}`}
                             />
                           </td>
@@ -674,6 +761,7 @@ export default function OrderTracker() {
                               onChange={(e) => handleUpdateTask(task.id, 'taskStatus', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
                               placeholder="حالة المهمة"
+                              disabled={!canEdit()}
                               data-testid={`input-task-status-${task.id}`}
                             />
                           </td>
@@ -684,6 +772,7 @@ export default function OrderTracker() {
                               onChange={(e) => handleUpdateTask(task.id, 'taskType', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
                               placeholder="نوع المهمة"
+                              disabled={!canEdit()}
                               data-testid={`input-task-type-${task.id}`}
                             />
                           </td>
@@ -693,6 +782,7 @@ export default function OrderTracker() {
                               value={task.taskName}
                               onChange={(e) => handleUpdateTask(task.id, 'taskName', e.target.value)}
                               className="bg-transparent border-none rtl-input focus:ring-0"
+                              disabled={!canEdit()}
                               data-testid={`input-task-name-${task.id}`}
                             />
                           </td>
@@ -702,6 +792,7 @@ export default function OrderTracker() {
                               size="sm"
                               className="text-destructive hover:text-destructive/80 p-0 h-auto"
                               onClick={() => handleDeleteTask(task.id)}
+                              disabled={!canDelete()}
                               data-testid={`button-delete-task-${task.id}`}
                             >
                               حذف

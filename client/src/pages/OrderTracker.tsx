@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Loader2, Plus, Save, FileText, Printer, LogOut, User as UserIcon, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell } from "lucide-react";
-import type { Order, Note, Task, User } from "@shared/schema";
+import type { Order, Note, TaskNote, Task, User } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -226,7 +226,7 @@ export default function OrderTracker() {
 
   // Attachment mutations
   const createAttachmentMutation = useMutation({
-    mutationFn: async (attachmentData: { taskId: string; fileName: string; fileData: string; size: string }) => {
+    mutationFn: async (attachmentData: { taskId: string; filename: string; mimeType: string; dataBase64: string; size: string }) => {
       const response = await apiRequest('POST', '/api/attachments', attachmentData);
       return response.json();
     },
@@ -418,7 +418,7 @@ export default function OrderTracker() {
   const handleOpenTaskNoteModal = (taskId: string) => {
     setCurrentTaskId(taskId);
     setCurrentOrderId(""); // Clear order ID
-    const taskNote = allTaskNotes.find((note: Note) => note.taskId === taskId);
+    const taskNote = allTaskNotes.find((note: TaskNote) => note.taskId === taskId);
     setCurrentNote(taskNote?.content || "");
     setNoteModalOpen(true);
   };
@@ -451,7 +451,7 @@ export default function OrderTracker() {
     
     // Handle task notes
     if (currentTaskId) {
-      const existingNote = allTaskNotes.find((note: Note) => note.taskId === currentTaskId);
+      const existingNote = allTaskNotes.find((note: TaskNote) => note.taskId === currentTaskId);
       
       if (existingNote) {
         updateTaskNoteMutation.mutate({ id: existingNote.id, content: currentNote });
@@ -948,7 +948,7 @@ export default function OrderTracker() {
                               data-testid={`button-task-note-${task.id}`}
                             >
                               {(() => {
-                                const taskNote = allTaskNotes.find((note: Note) => note.taskId === task.id);
+                                const taskNote = allTaskNotes.find((note: TaskNote) => note.taskId === task.id);
                                 return taskNote && taskNote.content && taskNote.content.trim() 
                                   ? 'عرض الملاحظة' 
                                   : (canEdit() ? 'ملاحظة' : 'عرض الملاحظة');

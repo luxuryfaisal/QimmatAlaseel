@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/components/ThemeProvider";
 import AuthModal from "../components/AuthModal";
 import NoteModal from "../components/NoteModal";
 import AttachmentModal from "../components/AttachmentModal";
+import ModernHeader from "../components/ModernHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,6 +21,7 @@ declare global {
 
 export default function OrderTracker() {
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState("");
   const [userRole, setUserRole] = useState<string>("");
@@ -33,6 +36,7 @@ export default function OrderTracker() {
   const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Check authentication on mount
   useEffect(() => {
@@ -319,6 +323,10 @@ export default function OrderTracker() {
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح"
     });
+  };
+
+  const handleOpenSettings = () => {
+    setSettingsOpen(true);
   };
 
   // Permission helpers
@@ -622,49 +630,15 @@ export default function OrderTracker() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      {/* Header */}
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-reverse space-x-4">
-              <div className="auth-gradient w-10 h-10 rounded-full flex items-center justify-center">
-                <ShoppingCart className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-foreground">نظام إدارة تتبع الطلبات</h1>
-                <p className="text-sm text-muted-foreground">فيصل - قسم الكهرباء</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-reverse space-x-4">
-              <div className="flex items-center space-x-reverse space-x-2">
-                <UserIcon className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  مرحباً، <span className="font-medium text-foreground">{currentUser}</span>
-                </span>
-                {userRole && (
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    userRole === 'admin' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    userRole === 'guest' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                  }`}>
-                    {userRole === 'admin' ? 'مدير' : userRole === 'guest' ? 'زائر' : 'مشاهد'}
-                  </span>
-                )}
-              </div>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={handleLogout}
-                data-testid="button-logout"
-              >
-                <LogOut className="w-4 h-4 ml-1" />
-                تسجيل الخروج
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Modern Header */}
+      <ModernHeader
+        username={currentUser}
+        userRole={userRole}
+        onLogout={handleLogout}
+        onOpenSettings={handleOpenSettings}
+        isDarkMode={theme === "dark"}
+        onToggleDarkMode={toggleTheme}
+      />
 
       <main className="container mx-auto px-4 py-8">
         {/* Tabs Navigation */}

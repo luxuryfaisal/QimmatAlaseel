@@ -130,13 +130,13 @@ export default function ModernHeader({
     setProfilePicDialogOpen(false);
   };
 
-  // Format time in Arabic
+  // Format time in Arabic (12-hour format for Saudi Arabia)
   const formatTimeArabic = (date: Date) => {
     return date.toLocaleTimeString('ar-SA', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false
+      hour12: true
     });
   };
 

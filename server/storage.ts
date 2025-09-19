@@ -551,19 +551,30 @@ export class MemStorage implements IStorage {
   async updateSettings(updateData: Partial<InsertSettings>, ownerId: string): Promise<Settings> {
     const existingSettings = this.settings.get(ownerId);
     
-    const updatedSettings: Settings = {
-      id: existingSettings?.id || randomUUID(),
-      ownerId,
-      createdAt: existingSettings?.createdAt || new Date(),
-      ordersSectionName: "طلبات الكهرباء",
-      tasksSectionName: "قسم إدارة المهام",
-      backgroundColor: "#ffffff",
-      pinHash: null,
-      allowGuest: "true",
-      companyLogo: null,
-      ...updateData,
-      updatedAt: new Date()
-    };
+    let updatedSettings: Settings;
+    if (existingSettings) {
+      // Preserve existing settings and only update provided fields
+      updatedSettings = {
+        ...existingSettings,
+        ...updateData,
+        updatedAt: new Date()
+      };
+    } else {
+      // Create new settings with defaults only for new users
+      updatedSettings = {
+        id: randomUUID(),
+        ownerId,
+        createdAt: new Date(),
+        ordersSectionName: "طلبات الكهرباء",
+        tasksSectionName: "قسم إدارة المهام",
+        backgroundColor: "#ffffff",
+        pinHash: null,
+        allowGuest: "true",
+        companyLogo: null,
+        ...updateData,
+        updatedAt: new Date()
+      };
+    }
     
     this.settings.set(ownerId, updatedSettings);
     return updatedSettings;
@@ -672,16 +683,16 @@ export class MemStorage implements IStorage {
     await this.updateSettings(defaultSettings, userId);
   }
 
-  // PIN verification
-  async verifyPin(pin: string): Promise<boolean> {
-    if (!this.settings || !this.settings.pinHash) {
-      return false; // No PIN set
+  // PIN verification (user-scoped)
+  async verifyPin(pin: string, ownerId: string): Promise<boolean> {
+    const userSettings = this.settings.get(ownerId);
+    if (!userSettings || !userSettings.pinHash) {
+      return false; // No PIN set for this user
     }
     
-    // Simple hash comparison (in production, use proper crypto)
-    const crypto = require('crypto');
-    const inputHash = crypto.createHash('sha256').update(pin).digest('hex');
-    return inputHash === this.settings.pinHash;
+    // Use bcryptjs for consistent password comparison
+    const bcryptjs = require('bcryptjs');
+    return bcryptjs.compareSync(pin, userSettings.pinHash);
   }
 }
 

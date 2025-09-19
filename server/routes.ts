@@ -15,6 +15,17 @@ declare module 'express-session' {
   }
 }
 
+// Extend Express Request interface to include user
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: {
+      id: string;
+      username: string;
+      role: string;
+    };
+  }
+}
+
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1)
@@ -152,8 +163,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/guest", async (req, res) => {
     try {
-      // Check if guest access is allowed
-      const settings = await storage.getSettings();
+      // Check if guest access is allowed from admin settings
+      // Use admin user ID to check global settings
+      const adminUser = await storage.getUserByUsername('admin');
+      if (!adminUser) {
+        return res.status(500).json({ message: "خطأ في النظام" });
+      }
+      
+      const settings = await storage.getSettings(adminUser.id);
       if (!settings || settings.allowGuest !== 'true') {
         return res.status(403).json({ message: "دخول الزائر غير مسموح حالياً" });
       }
@@ -180,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Order routes
   app.get("/api/orders", requireAuth, async (req, res) => {
     try {
-      const orders = await storage.getAllOrders();
+      const orders = await storage.getAllOrders(req.user.id);
       res.json(orders);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع الطلبات" });
@@ -190,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/orders", requireAuth, requireWrite, async (req, res) => {
     try {
       const orderData = insertOrderSchema.parse(req.body);
-      const newOrder = await storage.createOrder(orderData);
+      const newOrder = await storage.createOrder(orderData, req.user.id);
       res.status(201).json(newOrder);
     } catch (error) {
       res.status(400).json({ message: "خطأ في إنشاء الطلب" });
@@ -201,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = insertOrderSchema.partial().parse(req.body);
-      const updatedOrder = await storage.updateOrder(id, updateData);
+      const updatedOrder = await storage.updateOrder(id, updateData, req.user.id);
       
       if (!updatedOrder) {
         return res.status(404).json({ message: "الطلب غير موجود" });
@@ -216,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/orders/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteOrder(id);
+      const deleted = await storage.deleteOrder(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "الطلب غير موجود" });
@@ -232,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:orderId/notes", requireAuth, async (req, res) => {
     try {
       const { orderId } = req.params;
-      const notes = await storage.getNotesByOrderId(orderId);
+      const notes = await storage.getNotesByOrderId(orderId, req.user.id);
       res.json(notes);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع الملاحظات" });
@@ -242,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/notes", requireAuth, requireWrite, async (req, res) => {
     try {
       const noteData = insertNoteSchema.parse(req.body);
-      const newNote = await storage.createNote(noteData);
+      const newNote = await storage.createNote(noteData, req.user.id);
       res.status(201).json(newNote);
     } catch (error) {
       res.status(400).json({ message: "خطأ في إنشاء الملاحظة" });
@@ -253,7 +270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = insertNoteSchema.partial().parse(req.body);
-      const updatedNote = await storage.updateNote(id, updateData);
+      const updatedNote = await storage.updateNote(id, updateData, req.user.id);
       
       if (!updatedNote) {
         return res.status(404).json({ message: "الملاحظة غير موجودة" });
@@ -268,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteNote(id);
+      const deleted = await storage.deleteNote(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "الملاحظة غير موجودة" });
@@ -283,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task routes
   app.get("/api/tasks", requireAuth, async (req, res) => {
     try {
-      const tasks = await storage.getAllTasks();
+      const tasks = await storage.getAllTasks(req.user.id);
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع المهام" });
@@ -293,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", requireAuth, requireWrite, async (req, res) => {
     try {
       const taskData = insertTaskSchema.parse(req.body);
-      const newTask = await storage.createTask(taskData);
+      const newTask = await storage.createTask(taskData, req.user.id);
       res.status(201).json(newTask);
     } catch (error) {
       res.status(400).json({ message: "خطأ في إنشاء المهمة" });
@@ -304,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = insertTaskSchema.partial().parse(req.body);
-      const updatedTask = await storage.updateTask(id, updateData);
+      const updatedTask = await storage.updateTask(id, updateData, req.user.id);
       
       if (!updatedTask) {
         return res.status(404).json({ message: "المهمة غير موجودة" });
@@ -319,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/tasks/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteTask(id);
+      const deleted = await storage.deleteTask(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "المهمة غير موجودة" });
@@ -336,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tasks/:taskId/notes", requireAuth, async (req, res) => {
     try {
       const { taskId } = req.params;
-      const notes = await storage.getTaskNotesByTaskId(taskId);
+      const notes = await storage.getTaskNotesByTaskId(taskId, req.user.id);
       res.json(notes);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع ملاحظات المهمة" });
@@ -346,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/task-notes", requireAuth, requireWrite, async (req, res) => {
     try {
       const noteData = insertTaskNoteSchema.parse(req.body);
-      const newNote = await storage.createTaskNote(noteData);
+      const newNote = await storage.createTaskNote(noteData, req.user.id);
       res.status(201).json(newNote);
     } catch (error) {
       res.status(400).json({ message: "خطأ في إنشاء ملاحظة المهمة" });
@@ -357,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = insertTaskNoteSchema.partial().parse(req.body);
-      const updatedNote = await storage.updateTaskNote(id, updateData);
+      const updatedNote = await storage.updateTaskNote(id, updateData, req.user.id);
       
       if (!updatedNote) {
         return res.status(404).json({ message: "ملاحظة المهمة غير موجودة" });
@@ -372,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/task-notes/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteTaskNote(id);
+      const deleted = await storage.deleteTaskNote(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "ملاحظة المهمة غير موجودة" });
@@ -388,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tasks/:taskId/attachments", requireAuth, async (req, res) => {
     try {
       const { taskId } = req.params;
-      const attachments = await storage.getAttachmentsByTaskId(taskId);
+      const attachments = await storage.getAttachmentsByTaskId(taskId, req.user.id);
       res.json(attachments);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع المرفقات" });
@@ -415,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check number of existing attachments for this task (max 10)
-      const existingAttachments = await storage.getAttachmentsByTaskId(attachmentData.taskId);
+      const existingAttachments = await storage.getAttachmentsByTaskId(attachmentData.taskId, req.user.id);
       if (existingAttachments.length >= 10) {
         return res.status(400).json({ message: "تم الوصول للحد الأقصى من المرفقات (10)" });
       }
@@ -423,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update size with actual calculated size
       attachmentData.size = actualSizeInBytes.toString();
       
-      const newAttachment = await storage.createAttachment(attachmentData);
+      const newAttachment = await storage.createAttachment(attachmentData, req.user.id);
       res.status(201).json(newAttachment);
     } catch (error) {
       res.status(400).json({ message: "خطأ في رفع المرفق" });
@@ -433,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/attachments/:id", requireAuth, requireWrite, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteAttachment(id);
+      const deleted = await storage.deleteAttachment(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "المرفق غير موجود" });
@@ -446,19 +463,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Settings routes
-  app.get("/api/settings", async (req, res) => {
+  app.get("/api/settings", requireAuth, async (req, res) => {
     try {
-      const settings = await storage.getSettings();
+      const settings = await storage.getSettings(req.user.id);
       res.json(settings);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع الإعدادات" });
     }
   });
 
-  app.put("/api/settings", async (req, res) => {
+  app.put("/api/settings", requireAuth, async (req, res) => {
     try {
       const updateData = insertSettingsSchema.partial().parse(req.body);
-      const updatedSettings = await storage.updateSettings(updateData);
+      const updatedSettings = await storage.updateSettings(updateData, req.user.id);
       res.json(updatedSettings);
     } catch (error) {
       res.status(400).json({ message: "خطأ في تحديث الإعدادات" });
@@ -466,10 +483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PIN routes
-  app.post("/api/pin/verify", async (req, res) => {
+  app.post("/api/pin/verify", requireAuth, async (req, res) => {
     try {
       const { pin } = pinSchema.parse(req.body);
-      const isValid = await storage.verifyPin(pin);
+      const isValid = await storage.verifyPin(pin, req.user.id);
       
       if (!isValid) {
         return res.status(401).json({ message: "رقم الحماية غير صحيح" });
@@ -481,13 +498,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/pin/set", async (req, res) => {
+  app.post("/api/pin/set", requireAuth, async (req, res) => {
     try {
       const { pin } = setPinSchema.parse(req.body);
       const crypto = require('crypto');
       const pinHash = crypto.createHash('sha256').update(pin).digest('hex');
       
-      await storage.updateSettings({ pinHash });
+      await storage.updateSettings({ pinHash }, req.user.id);
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ message: "خطأ في تعيين رقم الحماية" });
@@ -497,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Sections routes
   app.get("/api/sections", requireAuth, async (req, res) => {
     try {
-      const sections = await storage.getAllSections();
+      const sections = await storage.getAllSections(req.user.id);
       res.json(sections);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع الأقسام" });
@@ -507,7 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sections", requireAdmin, async (req, res) => {
     try {
       const sectionData = insertSectionSchema.parse(req.body);
-      const newSection = await storage.createSection(sectionData);
+      const newSection = await storage.createSection(sectionData, req.user.id);
       res.status(201).json(newSection);
     } catch (error) {
       res.status(400).json({ message: "خطأ في إنشاء القسم" });
@@ -518,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const updateData = insertSectionSchema.partial().parse(req.body);
-      const updatedSection = await storage.updateSection(id, updateData);
+      const updatedSection = await storage.updateSection(id, updateData, req.user.id);
       
       if (!updatedSection) {
         return res.status(404).json({ message: "القسم غير موجود" });
@@ -533,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/sections/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.deleteSection(id);
+      const deleted = await storage.deleteSection(id, req.user.id);
       
       if (!deleted) {
         return res.status(404).json({ message: "القسم غير موجود" });

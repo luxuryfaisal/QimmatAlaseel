@@ -58,7 +58,8 @@ export default function ModernHeader({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [activeNoteTab, setActiveNoteTab] = useState("tab1");
-  const [adminProfilePic, setAdminProfilePic] = useState<string | null>(null);
+  const [adminProfilePics, setAdminProfilePics] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [profilePicDialogOpen, setProfilePicDialogOpen] = useState(false);
   const [editingTabName, setEditingTabName] = useState<string | null>(null);
   const [tempTabName, setTempTabName] = useState("");
@@ -101,13 +102,32 @@ export default function ModernHeader({
     return () => clearInterval(timer);
   }, []);
 
-  // Load saved profile pic from localStorage (keep this separate from notes)
+  // Load saved profile pics from localStorage
   useEffect(() => {
-    const savedProfilePic = localStorage.getItem('adminProfilePic');
-    if (savedProfilePic) {
-      setAdminProfilePic(savedProfilePic);
+    const savedProfilePics = localStorage.getItem('adminProfilePics');
+    if (savedProfilePics) {
+      try {
+        const parsedPics = JSON.parse(savedProfilePics);
+        if (Array.isArray(parsedPics) && parsedPics.length > 0) {
+          setAdminProfilePics(parsedPics);
+        }
+      } catch (error) {
+        console.error('Failed to parse saved profile pictures', error);
+      }
     }
   }, []);
+
+  // Auto-rotate images every 3 seconds
+  useEffect(() => {
+    if (adminProfilePics.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prevIndex) => 
+          (prevIndex + 1) % adminProfilePics.length
+        );
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [adminProfilePics.length]);
 
   // Helper functions for personal notes
   const saveNotes = () => {
@@ -164,9 +184,10 @@ export default function ModernHeader({
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        setAdminProfilePic(result);
+        const newPics = [...adminProfilePics, result];
+        setAdminProfilePics(newPics);
         try {
-          localStorage.setItem('adminProfilePic', result);
+          localStorage.setItem('adminProfilePics', JSON.stringify(newPics));
           setProfilePicDialogOpen(false);
         } catch (error) {
           console.error('Failed to save profile picture', error);
@@ -176,9 +197,10 @@ export default function ModernHeader({
     }
   };
 
-  const removeProfilePic = () => {
-    setAdminProfilePic(null);
-    localStorage.removeItem('adminProfilePic');
+  const removeAllProfilePics = () => {
+    setAdminProfilePics([]);
+    setCurrentImageIndex(0);
+    localStorage.removeItem('adminProfilePics');
     setProfilePicDialogOpen(false);
   };
 
@@ -311,31 +333,39 @@ export default function ModernHeader({
 
         {/* Header Information Cards */}
         <div className="grid grid-cols-4 gap-4">
-          {/* Current Time Card */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-current-time">
-            <div className="flex items-center justify-center mb-2">
-              <Clock className="w-5 h-5 text-blue-200 ml-2" />
-              <span className="text-sm text-blue-200">الساعة الآن</span>
+          {/* Enhanced Current Time Card */}
+          <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-xl p-6 text-center shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300" data-testid="card-current-time">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-white/20 rounded-full p-2 ml-2">
+                <Clock className="w-6 h-6 text-yellow-300 drop-shadow-lg" />
+              </div>
+              <span className="text-lg font-semibold text-blue-100">الساعة الآن</span>
             </div>
-            <div className="text-xl font-bold text-white" data-testid="text-current-time">
+            <div className="text-3xl font-bold text-white drop-shadow-lg tracking-wider" data-testid="text-current-time">
               {formatTimeArabic(currentTime)}
             </div>
+            <div className="mt-2 h-1 w-16 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mx-auto"></div>
           </div>
 
-          {/* Date Card */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-dates">
-            <div className="flex items-center justify-center mb-2">
-              <Calendar className="w-5 h-5 text-blue-200 ml-2" />
-              <span className="text-sm text-blue-200">التاريخ</span>
-            </div>
-            {hijriFormatted && (
-              <div className="text-xs text-white mb-1" data-testid="text-hijri-date">
-                هـ: {hijriFormatted}
+          {/* Enhanced Date Card */}
+          <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-xl p-6 text-center shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300" data-testid="card-dates">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-white/20 rounded-full p-2 ml-2">
+                <Calendar className="w-6 h-6 text-green-300 drop-shadow-lg" />
               </div>
-            )}
-            <div className="text-xs text-white" data-testid="text-gregorian-date">
-              م: {gregorianDate}
+              <span className="text-lg font-semibold text-blue-100">التاريخ</span>
             </div>
+            <div className="space-y-2">
+              {hijriFormatted && (
+                <div className="text-sm text-white font-medium bg-white/10 rounded-lg p-2" data-testid="text-hijri-date">
+                  <span className="text-yellow-300">هـ:</span> {hijriFormatted}
+                </div>
+              )}
+              <div className="text-sm text-white font-medium bg-white/10 rounded-lg p-2" data-testid="text-gregorian-date">
+                <span className="text-green-300">م:</span> {gregorianDate}
+              </div>
+            </div>
+            <div className="mt-3 h-1 w-16 bg-gradient-to-r from-green-400 to-blue-400 rounded-full mx-auto"></div>
           </div>
 
           {/* Notes Card */}
@@ -500,56 +530,127 @@ export default function ModernHeader({
             </Dialog>
           </div>
 
-          {/* Admin Profile Picture Card */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden" data-testid="card-admin-profile">
-            {adminProfilePic ? (
-              <div className="relative w-full h-full">
+          {/* Enhanced Admin Profile Picture Card with Multiple Rotating Images */}
+          <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-xl overflow-hidden shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300" data-testid="card-admin-profile">
+            {adminProfilePics.length > 0 ? (
+              <div className="relative w-full h-full group">
                 <img 
-                  src={adminProfilePic} 
-                  alt="صورة المدير" 
-                  className="w-full h-full object-cover"
+                  src={adminProfilePics[currentImageIndex]} 
+                  alt={`صورة المدير ${currentImageIndex + 1}`} 
+                  className="w-full h-full object-cover transition-opacity duration-500"
                   data-testid="img-admin-profile"
                 />
+                
+                {/* Image counter indicator */}
+                {adminProfilePics.length > 1 && (
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full font-medium">
+                    {currentImageIndex + 1} / {adminProfilePics.length}
+                  </div>
+                )}
+                
+                {/* Navigation dots */}
+                {adminProfilePics.length > 1 && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    {adminProfilePics.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                          index === currentImageIndex 
+                            ? 'bg-white scale-125' 
+                            : 'bg-white/60 hover:bg-white/80'
+                        }`}
+                        data-testid={`dot-${index}`}
+                      />
+                    ))}
+                  </div>
+                )}
+                
                 {userRole === 'admin' && (
                   <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
                     <DialogTrigger asChild>
                       <button 
-                        className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100" 
+                        className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 hover:opacity-100" 
                         data-testid="button-admin-profile"
                       >
-                        <Camera className="w-6 h-6 text-white" />
+                        <Camera className="w-8 h-8 text-white drop-shadow-lg" />
                       </button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="dialog-admin-profile">
                       <DialogHeader>
-                        <DialogTitle className="text-right">إدارة صورة المدير</DialogTitle>
+                        <DialogTitle className="text-right text-xl">إدارة صور المدير</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="flex justify-center">
-                          <img 
-                            src={adminProfilePic} 
-                            alt="صورة المدير الحالية" 
-                            className="w-24 h-24 rounded-full object-cover"
-                            data-testid="img-current-admin-profile"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
+                      <div className="space-y-6">
+                        {/* Current images grid */}
+                        {adminProfilePics.length > 0 && (
+                          <div className="space-y-4">
+                            <h3 className="text-right font-semibold text-lg">الصور الحالية ({adminProfilePics.length})</h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                              {adminProfilePics.map((pic, index) => (
+                                <div key={index} className="relative group">
+                                  <img 
+                                    src={pic} 
+                                    alt={`صورة ${index + 1}`} 
+                                    className="w-full aspect-square object-cover rounded-lg shadow-md"
+                                    data-testid={`img-profile-${index}`}
+                                  />
+                                  <div className={`absolute inset-0 border-2 rounded-lg transition-colors ${
+                                    index === currentImageIndex 
+                                      ? 'border-blue-400 shadow-blue-400/50 shadow-lg' 
+                                      : 'border-transparent'
+                                  }`} />
+                                  <button 
+                                    onClick={() => {
+                                      const newPics = adminProfilePics.filter((_, i) => i !== index);
+                                      setAdminProfilePics(newPics);
+                                      if (currentImageIndex >= newPics.length && newPics.length > 0) {
+                                        setCurrentImageIndex(0);
+                                      }
+                                      if (newPics.length > 0) {
+                                        localStorage.setItem('adminProfilePics', JSON.stringify(newPics));
+                                      } else {
+                                        localStorage.removeItem('adminProfilePics');
+                                      }
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:scale-110"
+                                    data-testid={`button-remove-${index}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                  {index === currentImageIndex && (
+                                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                      نشط
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Upload new images */}
+                        <div className="space-y-3">
+                          <Label htmlFor="profile-pic-upload" className="text-right text-lg font-semibold">إضافة صور جديدة</Label>
                           <Input 
                             id="profile-pic-upload"
                             type="file" 
                             accept="image/*"
+                            multiple
                             onChange={handleProfilePicUpload}
-                            className="text-right"
+                            className="text-right border-2 border-dashed hover:border-solid transition-all duration-200"
                             data-testid="input-profile-pic-upload"
                           />
+                          <p className="text-sm text-muted-foreground text-right bg-muted/50 p-3 rounded-lg">
+                            💡 يمكنك اختيار عدة صور في نفس الوقت. ستتغير الصور تلقائياً كل 3 ثوانِ.
+                          </p>
                         </div>
-                        <div className="flex justify-end space-x-reverse space-x-2">
-                          <Button onClick={removeProfilePic} variant="destructive" data-testid="button-remove-profile">
+                        
+                        <div className="flex justify-end space-x-reverse space-x-3 pt-4 border-t">
+                          <Button onClick={removeAllProfilePics} variant="destructive" className="hover:scale-105 transition-transform" data-testid="button-remove-all-profile">
                             <X className="w-4 h-4 ml-2" />
-                            حذف الصورة
+                            حذف جميع الصور
                           </Button>
-                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
+                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" className="hover:scale-105 transition-transform" data-testid="button-close-profile-dialog">
                             إغلاق
                           </Button>
                         </div>
@@ -559,40 +660,53 @@ export default function ModernHeader({
                 )}
               </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center p-4" data-testid="placeholder-no-profile">
+              <div className="w-full h-full flex items-center justify-center text-center p-6" data-testid="placeholder-no-profile">
                 {userRole === 'admin' ? (
                   <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
                     <DialogTrigger asChild>
-                      <button className="w-full h-full flex items-center justify-center hover:bg-white/5 rounded transition-colors" data-testid="button-add-profile">
-                        <Camera className="w-8 h-8 text-blue-200" />
+                      <button className="w-full h-full flex flex-col items-center justify-center hover:bg-white/10 rounded-xl transition-all duration-300 group" data-testid="button-add-profile">
+                        <div className="bg-gradient-to-br from-white/20 to-white/10 rounded-full p-4 mb-3 group-hover:scale-110 transition-transform duration-300">
+                          <Camera className="w-8 h-8 text-blue-300 drop-shadow-lg" />
+                        </div>
+                        <span className="text-sm text-blue-200 font-semibold group-hover:text-white transition-colors duration-300">إضافة صور</span>
+                        <span className="text-xs text-blue-300/70 mt-1">اضغط لرفع الصور</span>
                       </button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
+                    <DialogContent className="max-w-md" data-testid="dialog-add-admin-profile">
                       <DialogHeader>
-                        <DialogTitle className="text-right">إضافة صورة المدير</DialogTitle>
+                        <DialogTitle className="text-right text-xl">إضافة صور المدير</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <Label htmlFor="new-profile-pic-upload" className="text-right text-lg">اختيار الصور</Label>
                           <Input 
-                            id="profile-pic-upload"
+                            id="new-profile-pic-upload"
                             type="file" 
                             accept="image/*"
+                            multiple
                             onChange={handleProfilePicUpload}
-                            className="text-right"
-                            data-testid="input-profile-pic-upload"
+                            className="text-right border-2 border-dashed hover:border-solid transition-all duration-200"
+                            data-testid="input-new-profile-pic-upload"
                           />
+                          <p className="text-sm text-muted-foreground text-right bg-muted/50 p-3 rounded-lg">
+                            💡 يمكنك اختيار عدة صور معاً. ستتناوب الصور تلقائياً كل 3 ثوانِ.
+                          </p>
                         </div>
-                        <div className="flex justify-end">
-                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
-                            إغلاق
+                        <div className="flex justify-end pt-4 border-t">
+                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-add-profile-dialog">
+                            إلغاء
                           </Button>
                         </div>
                       </div>
                     </DialogContent>
                   </Dialog>
                 ) : (
-                  <User className="w-8 h-8 text-blue-200/50" />
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="bg-gradient-to-br from-white/20 to-white/10 rounded-full p-4 mb-3">
+                      <User className="w-8 h-8 text-blue-300 drop-shadow-lg" />
+                    </div>
+                    <span className="text-sm text-blue-200">لا توجد صور</span>
+                  </div>
                 )}
               </div>
             )}

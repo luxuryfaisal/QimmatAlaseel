@@ -105,7 +105,7 @@ export class MemStorage implements IStorage {
     const adminSettings: Settings = {
       id: randomUUID(),
       ownerId: adminUserId,
-      ordersSectionName: "طلبات الكهرباء",
+      ordersSectionName: "قسم الطلبات",
       tasksSectionName: "قسم إدارة المهام",
       backgroundColor: "#ffffff",
       pinHash: null,
@@ -119,7 +119,7 @@ export class MemStorage implements IStorage {
     // Initialize default sections
     const defaultSections = [
       {
-        name: "طلبات الكهرباء",
+        name: "قسم الطلبات",
         baseType: "orders",
         color: "#3b82f6",
         orderIndex: "0",
@@ -571,7 +571,7 @@ export class MemStorage implements IStorage {
         id: randomUUID(),
         ownerId,
         createdAt: new Date(),
-        ordersSectionName: "طلبات الكهرباء",
+        ordersSectionName: "قسم الطلبات",
         tasksSectionName: "قسم إدارة المهام",
         backgroundColor: "#ffffff",
         pinHash: null,
@@ -645,7 +645,7 @@ export class MemStorage implements IStorage {
     // Create default sections for the user
     const defaultSections = [
       {
-        name: "طلبات الكهرباء",
+        name: "قسم الطلبات",
         baseType: "orders",
         color: "#3b82f6",
         orderIndex: "0",
@@ -680,7 +680,7 @@ export class MemStorage implements IStorage {
 
     // Create default settings for the user (optional)
     const defaultSettings = {
-      ordersSectionName: "طلبات الكهرباء",
+      ordersSectionName: "قسم الطلبات",
       tasksSectionName: "قسم إدارة المهام",
       backgroundColor: "#ffffff",
       allowGuest: "true"

@@ -662,7 +662,7 @@ export default function OrderTracker() {
               data-testid="tab-orders"
             >
               <ShoppingCart className="w-4 h-4 ml-2" />
-              {ordersSection?.name || "قسم طلبات الكهرباء"}
+              {ordersSection?.name || "قسم الطلبات"}
             </button>
             <button
               onClick={() => handleTabChange("tasks")}

@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // Safe ESM logo import with fallback
 const logos = import.meta.glob('@assets/Picsart_25-09-19_00-28-14-307_1758237498784.png', { 
@@ -44,6 +49,122 @@ export default function ModernHeader({
   onToggleDarkMode 
 }: ModernHeaderProps) {
   const [imageError, setImageError] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [activeNoteTab, setActiveNoteTab] = useState("note1");
+  const [notes, setNotes] = useState({
+    note1: "",
+    note2: "",
+    note3: ""
+  });
+  const [adminProfilePic, setAdminProfilePic] = useState<string | null>(null);
+  const [profilePicDialogOpen, setProfilePicDialogOpen] = useState(false);
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load saved notes and profile pic from localStorage
+  useEffect(() => {
+    const savedNotes = localStorage.getItem('headerNotes');
+    if (savedNotes) {
+      try {
+        setNotes(JSON.parse(savedNotes));
+      } catch (error) {
+        console.warn('Failed to parse saved notes, using defaults', error);
+        // Keep default empty notes if JSON is corrupted
+      }
+    }
+    const savedProfilePic = localStorage.getItem('adminProfilePic');
+    if (savedProfilePic) {
+      setAdminProfilePic(savedProfilePic);
+    }
+  }, []);
+
+  const saveNotes = () => {
+    try {
+      localStorage.setItem('headerNotes', JSON.stringify(notes));
+      setNotesDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to save notes', error);
+      // Could add toast notification here for user feedback
+    }
+  };
+
+  const handleProfilePicUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        console.warn('Please select a valid image file');
+        return;
+      }
+      
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        console.warn('Image file is too large. Please select a smaller image.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setAdminProfilePic(result);
+        try {
+          localStorage.setItem('adminProfilePic', result);
+          setProfilePicDialogOpen(false);
+        } catch (error) {
+          console.error('Failed to save profile picture', error);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeProfilePic = () => {
+    setAdminProfilePic(null);
+    localStorage.removeItem('adminProfilePic');
+    setProfilePicDialogOpen(false);
+  };
+
+  // Format time in Arabic
+  const formatTimeArabic = (date: Date) => {
+    return date.toLocaleTimeString('ar-SA', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  // Get Hijri and Gregorian dates
+  const getFormattedDates = () => {
+    // Explicitly format Gregorian date with Gregorian calendar and Arabic numerals
+    const gregorianDate = currentTime.toLocaleDateString('ar-u-ca-gregory-nu-arab', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    try {
+      // Use Intl.DateTimeFormat for Islamic calendar in Arabic
+      const hijriFormatted = currentTime.toLocaleDateString('ar-u-ca-islamic-nu-arab', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      return { gregorianDate, hijriFormatted };
+    } catch (error) {
+      console.warn('Hijri date formatting failed, hiding Hijri date', error);
+      // Return null for hijri if formatting fails
+      return { gregorianDate, hijriFormatted: null };
+    }
+  };
+
+  const { gregorianDate, hijriFormatted } = getFormattedDates();
 
   return (
     <div className="relative overflow-hidden">
@@ -136,23 +257,165 @@ export default function ModernHeader({
           </div>
         </div>
 
-        {/* Modern Stats Cards */}
+        {/* Header Information Cards */}
         <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-white mb-1">24/7</div>
-            <div className="text-xs text-blue-200">خدمة متواصلة</div>
+          {/* Current Time Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-current-time">
+            <div className="flex items-center justify-center mb-2">
+              <Clock className="w-5 h-5 text-blue-200 ml-2" />
+              <span className="text-sm text-blue-200">الساعة الآن</span>
+            </div>
+            <div className="text-xl font-bold text-white" data-testid="text-current-time">
+              {formatTimeArabic(currentTime)}
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-white mb-1">99%</div>
-            <div className="text-xs text-blue-200">دقة في التنفيذ</div>
+
+          {/* Date Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-dates">
+            <div className="flex items-center justify-center mb-2">
+              <Calendar className="w-5 h-5 text-blue-200 ml-2" />
+              <span className="text-sm text-blue-200">التاريخ</span>
+            </div>
+            {hijriFormatted && (
+              <div className="text-xs text-white mb-1" data-testid="text-hijri-date">
+                هـ: {hijriFormatted}
+              </div>
+            )}
+            <div className="text-xs text-white" data-testid="text-gregorian-date">
+              م: {gregorianDate}
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-white mb-1">500+</div>
-            <div className="text-xs text-blue-200">مشروع مكتمل</div>
+
+          {/* Notes Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-notes">
+            <Dialog open={notesDialogOpen} onOpenChange={setNotesDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="w-full h-full flex flex-col items-center justify-center hover:bg-white/5 rounded transition-colors" data-testid="button-open-notes">
+                  <div className="flex items-center justify-center mb-2">
+                    <NotebookPen className="w-5 h-5 text-blue-200 ml-2" />
+                    <span className="text-sm text-blue-200">دفتر الملاحظات</span>
+                  </div>
+                  <div className="text-xs text-white">اضغط للفتح</div>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl" data-testid="dialog-notes">
+                <DialogHeader>
+                  <DialogTitle className="text-right">دفتر الملاحظات</DialogTitle>
+                </DialogHeader>
+                <Tabs value={activeNoteTab} onValueChange={setActiveNoteTab} className="w-full" dir="rtl">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="note1" data-testid="tab-note1">ملاحظة 1</TabsTrigger>
+                    <TabsTrigger value="note2" data-testid="tab-note2">ملاحظة 2</TabsTrigger>
+                    <TabsTrigger value="note3" data-testid="tab-note3">ملاحظة 3</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="note1" className="space-y-4">
+                    <Textarea 
+                      placeholder="اكتب ملاحظاتك هنا..."
+                      className="min-h-[200px] text-right"
+                      value={notes.note1}
+                      onChange={(e) => setNotes(prev => ({ ...prev, note1: e.target.value }))}
+                      data-testid="textarea-note1"
+                    />
+                  </TabsContent>
+                  <TabsContent value="note2" className="space-y-4">
+                    <Textarea 
+                      placeholder="اكتب ملاحظاتك هنا..."
+                      className="min-h-[200px] text-right"
+                      value={notes.note2}
+                      onChange={(e) => setNotes(prev => ({ ...prev, note2: e.target.value }))}
+                      data-testid="textarea-note2"
+                    />
+                  </TabsContent>
+                  <TabsContent value="note3" className="space-y-4">
+                    <Textarea 
+                      placeholder="اكتب ملاحظاتك هنا..."
+                      className="min-h-[200px] text-right"
+                      value={notes.note3}
+                      onChange={(e) => setNotes(prev => ({ ...prev, note3: e.target.value }))}
+                      data-testid="textarea-note3"
+                    />
+                  </TabsContent>
+                </Tabs>
+                <div className="flex justify-end space-x-reverse space-x-2">
+                  <Button onClick={() => setNotesDialogOpen(false)} variant="outline" data-testid="button-cancel-notes">
+                    إلغاء
+                  </Button>
+                  <Button onClick={saveNotes} data-testid="button-save-notes">
+                    <Save className="w-4 h-4 ml-2" />
+                    حفظ
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-white mb-1">15</div>
-            <div className="text-xs text-blue-200">عام خبرة</div>
+
+          {/* Admin Profile Picture Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-admin-profile">
+            {userRole === 'admin' ? (
+              <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
+                <DialogTrigger asChild>
+                  <button className="w-full h-full flex flex-col items-center justify-center hover:bg-white/5 rounded transition-colors" data-testid="button-admin-profile">
+                    {adminProfilePic ? (
+                      <img 
+                        src={adminProfilePic} 
+                        alt="صورة المدير" 
+                        className="w-12 h-12 rounded-full object-cover mb-2"
+                        data-testid="img-admin-profile"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2">
+                        <Camera className="w-6 h-6 text-blue-200" />
+                      </div>
+                    )}
+                    <div className="text-xs text-blue-200">صورة المدير</div>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
+                  <DialogHeader>
+                    <DialogTitle className="text-right">إدارة صورة المدير</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {adminProfilePic && (
+                      <div className="flex justify-center">
+                        <img 
+                          src={adminProfilePic} 
+                          alt="صورة المدير الحالية" 
+                          className="w-24 h-24 rounded-full object-cover"
+                          data-testid="img-current-admin-profile"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
+                      <Input 
+                        id="profile-pic-upload"
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleProfilePicUpload}
+                        className="text-right"
+                        data-testid="input-profile-pic-upload"
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-reverse space-x-2">
+                      {adminProfilePic && (
+                        <Button onClick={removeProfilePic} variant="destructive" data-testid="button-remove-profile">
+                          <X className="w-4 h-4 ml-2" />
+                          حذف الصورة
+                        </Button>
+                      )}
+                      <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
+                        إغلاق
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center opacity-50" data-testid="placeholder-admin-only">
+                <User className="w-8 h-8 text-blue-200 mb-2" />
+                <div className="text-xs text-blue-200">خاص بالمدير</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

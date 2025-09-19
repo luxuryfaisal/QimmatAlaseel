@@ -69,7 +69,7 @@ export const attachments = pgTable("attachments", {
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   ownerId: varchar("owner_id").notNull(),
-  ordersSectionName: text("orders_section_name").default("طلبات الكهرباء"),
+  ordersSectionName: text("orders_section_name").default("قسم الطلبات"),
   tasksSectionName: text("tasks_section_name").default("قسم إدارة المهام"),
   backgroundColor: text("background_color").default("#ffffff"),
   pinHash: text("pin_hash"),

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is an Arabic-language order tracking application designed for electrical equipment orders. The system provides a comprehensive solution for managing and tracking orders with note-taking capabilities and PDF export functionality. Built as a full-stack application with a React frontend and Express backend, it features user authentication, real-time order management, and a clean, RTL-optimized user interface.
+This is an Arabic-language order tracking application designed for orders management. The system provides a comprehensive solution for managing and tracking orders with note-taking capabilities and PDF export functionality. Built as a full-stack application with a React frontend and Express backend, it features user authentication, real-time order management, and a clean, RTL-optimized user interface.
 
 ## User Preferences
 

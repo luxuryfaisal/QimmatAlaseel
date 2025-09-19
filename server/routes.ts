@@ -495,7 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sections routes
-  app.get("/api/sections", async (req, res) => {
+  app.get("/api/sections", requireAuth, async (req, res) => {
     try {
       const sections = await storage.getAllSections();
       res.json(sections);
@@ -504,7 +504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sections", async (req, res) => {
+  app.post("/api/sections", requireAdmin, async (req, res) => {
     try {
       const sectionData = insertSectionSchema.parse(req.body);
       const newSection = await storage.createSection(sectionData);
@@ -514,7 +514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/sections/:id", async (req, res) => {
+  app.put("/api/sections/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertSectionSchema.partial().parse(req.body);
@@ -530,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/sections/:id", async (req, res) => {
+  app.delete("/api/sections/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteSection(id);

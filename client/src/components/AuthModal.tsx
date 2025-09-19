@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Lock, User, Loader2, Building2 } from "lucide-react";
 import type { User as UserType } from "@shared/schema";
 import logoImage from "@assets/Picsart_25-09-19_00-28-14-307_1758250619138.png";
+import WelcomeModal from "./WelcomeModal";
 
 
 interface AuthModalProps {
@@ -18,6 +19,8 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeUser, setWelcomeUser] = useState<UserType | null>(null);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
@@ -26,12 +29,14 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
     },
     onSuccess: (data) => {
       if (data.success) {
-        // Session-based authentication - no need to store tokens
-        onLogin(data.user);
-        toast({
-          title: "تم تسجيل الدخول بنجاح",
-          description: `مرحباً بك ${data.user.username}`
-        });
+        // Show welcome modal first
+        setWelcomeUser(data.user);
+        setShowWelcome(true);
+        
+        // Then login after welcome modal closes
+        setTimeout(() => {
+          onLogin(data.user);
+        }, 4500); // Slightly after welcome modal auto-closes
       }
     },
     onError: () => {
@@ -57,23 +62,31 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
 
+  const handleWelcomeClose = () => {
+    setShowWelcome(false);
+    if (welcomeUser) {
+      onLogin(welcomeUser);
+    }
+  };
+
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center z-50" 
-      style={{
-        backgroundImage: `
-          radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
-          radial-gradient(circle at 40% 40%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-          linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%),
-          url(${logoImage})
-        `,
-        backgroundSize: '300px, 300px, 300px, cover, 80%',
-        backgroundPosition: 'top left, bottom right, center, center, center',
-        backgroundRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat, no-repeat'
-      }}
-      dir="rtl"
-    >
+    <>
+      <div 
+        className="fixed inset-0 flex items-center justify-center z-50" 
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%),
+            url(${logoImage})
+          `,
+          backgroundSize: '300px, 300px, 300px, cover, 80%',
+          backgroundPosition: 'top left, bottom right, center, center, center',
+          backgroundRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat, no-repeat'
+        }}
+        dir="rtl"
+      >
       {/* Animated background overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-blue-900/75 to-slate-800/90 backdrop-blur-[2px]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))]" />
@@ -163,6 +176,15 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+
+      {/* Welcome Modal */}
+      {showWelcome && welcomeUser && (
+        <WelcomeModal 
+          user={welcomeUser} 
+          onClose={handleWelcomeClose}
+        />
+      )}
+    </>
   );
 }

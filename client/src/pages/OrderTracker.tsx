@@ -1167,6 +1167,7 @@ export default function OrderTracker() {
       <UserManagement
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        currentUserRole={userRole}
       />
 
       {/* Sections Management Modal */}

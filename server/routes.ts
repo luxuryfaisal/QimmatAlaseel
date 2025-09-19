@@ -18,7 +18,7 @@ declare module 'express-session' {
 // Extend Express Request interface to include user
 declare module 'express-serve-static-core' {
   interface Request {
-    user?: {
+    user: {
       id: string;
       username: string;
       role: string;
@@ -70,21 +70,21 @@ const requireAuth = async (req: any, res: any, next: any) => {
   }
 };
 
-// Middleware to check if user can perform write operations (only admin and editor)
+// Middleware to check if user can perform write operations (admin, employee, and editor)
 const requireWrite = async (req: any, res: any, next: any) => {
   if (!req.user) {
     return res.status(401).json({ message: "غير مخول للوصول" });
   }
   
-  // Only admin and editor roles can perform write operations
-  if (req.user.role !== 'admin' && req.user.role !== 'editor') {
+  // Admin, employee, and editor roles can perform write operations
+  if (req.user.role !== 'admin' && req.user.role !== 'employee' && req.user.role !== 'editor') {
     return res.status(403).json({ message: "ليس لديك صلاحية للتعديل - للمشاهدة فقط" });
   }
   
   next();
 };
 
-// Authorization middleware for admin-only routes using session
+// Authorization middleware for admin and employee routes using session
 const requireAdmin = async (req: any, res: any, next: any) => {
   // Check session for authenticated user
   if (!req.session || !req.session.userId) {
@@ -94,8 +94,8 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     // Get user from storage to verify current role
     const user = await storage.getUser(req.session.userId);
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: "يجب أن تكون مديراً للوصول لهذه الميزة" });
+    if (!user || (user.role !== 'admin' && user.role !== 'employee')) {
+      return res.status(403).json({ message: "يجب أن تكون مديراً أو موظفاً للوصول لهذه الميزة" });
     }
     
     req.user = { id: user.id, username: user.username, role: user.role };

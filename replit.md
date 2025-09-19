@@ -34,8 +34,9 @@ Preferred communication style: Simple, everyday language.
 ### Authentication and Authorization
 - **Method**: Simple username/password authentication with session-based storage
 - **Session Persistence**: 24-hour client-side authentication caching with localStorage
-- **Default Credentials**: Admin user with configurable credentials for system access
+- **Default Credentials**: Admin user with configurable credentials for system access (admin/admin123)
 - **Security**: Session-based authentication with server-side validation
+- **Task Management Access**: Direct access to task management without additional PIN authentication
 
 ### Development and Build Architecture
 - **Build Tool**: Vite for fast development and optimized production builds

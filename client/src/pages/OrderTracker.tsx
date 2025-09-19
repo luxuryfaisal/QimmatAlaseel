@@ -35,9 +35,6 @@ export default function OrderTracker() {
   const [currentAttachmentTaskId, setCurrentAttachmentTaskId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"orders" | "tasks">("orders");
   const [taskAlertsShown, setTaskAlertsShown] = useState(false);
-  const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [pinInput, setPinInput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sectionsModalOpen, setSectionsModalOpen] = useState(false);
 
@@ -58,18 +55,6 @@ export default function OrderTracker() {
       }
     }
 
-    // Check PIN authentication
-    const pinAuthData = localStorage.getItem('tasksPinAuth');
-    if (pinAuthData) {
-      const { authenticated, timestamp } = JSON.parse(pinAuthData);
-      const hoursAgo = (Date.now() - timestamp) / (1000 * 60 * 60);
-      
-      if (authenticated && hoursAgo < 2) { // PIN valid for 2 hours
-        setIsPinAuthenticated(true);
-      } else {
-        localStorage.removeItem('tasksPinAuth');
-      }
-    }
   }, []);
 
   // Fetch orders
@@ -338,11 +323,9 @@ export default function OrderTracker() {
     
     // Clear client-side data
     localStorage.removeItem('orderTrackerAuth');
-    localStorage.removeItem('tasksPinAuth'); // Clear PIN session on logout
     setIsAuthenticated(false);
     setCurrentUser('');
     setUserRole('');
-    setIsPinAuthenticated(false); // Reset PIN authentication
     toast({
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح"
@@ -393,41 +376,9 @@ export default function OrderTracker() {
 
   // PIN handlers
   const handleTabChange = (tab: "orders" | "tasks") => {
-    if (tab === "tasks" && !isPinAuthenticated) {
-      setPinModalOpen(true);
-      return;
-    }
     setActiveTab(tab);
   };
 
-  const handlePinSubmit = () => {
-    const correctPin = "1234"; // This could be configurable in the future
-    if (pinInput === correctPin) {
-      setIsPinAuthenticated(true);
-      localStorage.setItem('tasksPinAuth', JSON.stringify({
-        authenticated: true,
-        timestamp: Date.now()
-      }));
-      setPinModalOpen(false);
-      setPinInput("");
-      setActiveTab("tasks");
-      toast({
-        title: "تم التحقق بنجاح",
-        description: "تم فتح قسم إدارة المهام"
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "PIN خاطئ",
-        description: "يرجى إدخال PIN صحيح"
-      });
-    }
-  };
-
-  const handlePinModalClose = () => {
-    setPinModalOpen(false);
-    setPinInput("");
-  };
 
   const handleAddRow = () => {
     if (!canEdit()) {
@@ -1116,52 +1067,6 @@ export default function OrderTracker() {
         canEdit={canEdit()}
       />
 
-      {/* PIN Modal */}
-      {pinModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4 text-center">حماية قسم المهام</h2>
-            <p className="text-muted-foreground mb-4 text-center">
-              يرجى إدخال PIN المكون من 4 أرقام للوصول إلى قسم إدارة المهام
-            </p>
-            <div className="space-y-4">
-              <Input
-                type="password"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="أدخل PIN"
-                maxLength={4}
-                className="text-center text-2xl tracking-widest"
-                data-testid="input-pin"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handlePinSubmit();
-                  }
-                  if (e.key === 'Escape') {
-                    handlePinModalClose();
-                  }
-                }}
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={handlePinModalClose}
-                  data-testid="button-pin-cancel"
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  onClick={handlePinSubmit}
-                  disabled={pinInput.length !== 4}
-                  data-testid="button-pin-submit"
-                >
-                  تأكيد
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* User Management Modal */}
       <UserManagement

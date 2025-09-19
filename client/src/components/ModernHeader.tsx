@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save, Edit2 } from "lucide-react";
+import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save, Edit2, Play, Pause } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,6 +61,8 @@ export default function ModernHeader({
   const [adminProfilePics, setAdminProfilePics] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [profilePicDialogOpen, setProfilePicDialogOpen] = useState(false);
+  const [isImageRotationPaused, setIsImageRotationPaused] = useState(false);
+  const [imageTransitioning, setImageTransitioning] = useState(false);
   const [editingTabName, setEditingTabName] = useState<string | null>(null);
   const [tempTabName, setTempTabName] = useState("");
 
@@ -117,17 +119,21 @@ export default function ModernHeader({
     }
   }, []);
 
-  // Auto-rotate images every 3 seconds
+  // Auto-rotate images every 5 seconds with pause functionality
   useEffect(() => {
-    if (adminProfilePics.length > 1) {
+    if (adminProfilePics.length > 1 && !isImageRotationPaused) {
       const interval = setInterval(() => {
-        setCurrentImageIndex((prevIndex) => 
-          (prevIndex + 1) % adminProfilePics.length
-        );
-      }, 3000);
+        setImageTransitioning(true);
+        setTimeout(() => {
+          setCurrentImageIndex((prevIndex) => 
+            (prevIndex + 1) % adminProfilePics.length
+          );
+          setImageTransitioning(false);
+        }, 200); // Fade out duration
+      }, 5000);
       return () => clearInterval(interval);
     }
-  }, [adminProfilePics.length]);
+  }, [adminProfilePics.length, isImageRotationPaused]);
 
   // Helper functions for personal notes
   const saveNotes = () => {
@@ -534,19 +540,33 @@ export default function ModernHeader({
           <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-xl overflow-hidden shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300" data-testid="card-admin-profile">
             {adminProfilePics.length > 0 ? (
               <div className="relative w-full h-full group">
-                <img 
-                  src={adminProfilePics[currentImageIndex]} 
-                  alt={`صورة المدير ${currentImageIndex + 1}`} 
-                  className="w-full h-full object-cover transition-opacity duration-500"
-                  data-testid="img-admin-profile"
-                />
-                
-                {/* Image counter indicator */}
-                {adminProfilePics.length > 1 && (
-                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full font-medium">
-                    {currentImageIndex + 1} / {adminProfilePics.length}
-                  </div>
-                )}
+                <div 
+                  className="relative w-full h-full cursor-pointer"
+                  onClick={() => setIsImageRotationPaused(!isImageRotationPaused)}
+                  data-testid="img-container-admin-profile"
+                >
+                  <img 
+                    src={adminProfilePics[currentImageIndex]} 
+                    alt={`صورة المدير`} 
+                    className={`w-full h-full object-cover transition-all duration-700 ease-in-out ${
+                      imageTransitioning ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
+                    }`}
+                    data-testid="img-admin-profile"
+                  />
+                  
+                  {/* Pause/Play indicator */}
+                  {adminProfilePics.length > 1 && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
+                      <div className="bg-black/60 backdrop-blur-sm rounded-full p-3">
+                        {isImageRotationPaused ? (
+                          <Play className="w-6 h-6 text-white" />
+                        ) : (
+                          <Pause className="w-6 h-6 text-white" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
                 {/* Navigation dots */}
                 {adminProfilePics.length > 1 && (

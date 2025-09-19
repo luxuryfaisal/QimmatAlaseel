@@ -10,9 +10,10 @@ import ModernHeader from "../components/ModernHeader";
 import UserManagement from "../components/UserManagement";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Loader2, Plus, Save, FileText, Printer, LogOut, User as UserIcon, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell } from "lucide-react";
-import type { Order, Note, TaskNote, Task, User } from "@shared/schema";
+import { Loader2, Plus, Save, FileText, Printer, LogOut, User as UserIcon, Calendar, Package, ShoppingCart, Clock, Settings, CheckSquare, AlertTriangle, Bell, Edit, X } from "lucide-react";
+import type { Order, Note, TaskNote, Task, User, Section } from "@shared/schema";
 
 declare global {
   interface Window {
@@ -38,6 +39,7 @@ export default function OrderTracker() {
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sectionsModalOpen, setSectionsModalOpen] = useState(false);
 
   // Check authentication on mount
   useEffect(() => {
@@ -75,6 +77,16 @@ export default function OrderTracker() {
     queryKey: ['/api/orders'],
     enabled: isAuthenticated
   });
+
+  // Fetch sections
+  const { data: sections = [] } = useQuery<Section[]>({
+    queryKey: ['/api/sections'],
+    enabled: isAuthenticated
+  });
+
+  // Get section names
+  const ordersSection = sections.find(s => s.baseType === 'orders');
+  const tasksSection = sections.find(s => s.baseType === 'tasks');
 
   // Fetch notes for all orders
   const { data: allNotes = [] } = useQuery({
@@ -339,6 +351,38 @@ export default function OrderTracker() {
 
   const handleOpenSettings = () => {
     setSettingsOpen(true);
+  };
+
+  const handleOpenSections = () => {
+    setSectionsModalOpen(true);
+  };
+
+  // Update section mutation
+  const updateSectionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string } }) => {
+      const response = await apiRequest('PUT', `/api/sections/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/sections'] });
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث اسم القسم بنجاح"
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "فشل في تحديث اسم القسم",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleUpdateSectionName = (sectionId: string, newName: string) => {
+    if (newName.trim() && userRole === 'admin') {
+      updateSectionMutation.mutate({ id: sectionId, data: { name: newName.trim() } });
+    }
   };
 
   // Permission helpers
@@ -667,7 +711,7 @@ export default function OrderTracker() {
               data-testid="tab-orders"
             >
               <ShoppingCart className="w-4 h-4 ml-2" />
-              قسم طلبات الكهرباء
+              {ordersSection?.name || "قسم طلبات الكهرباء"}
             </button>
             <button
               onClick={() => handleTabChange("tasks")}
@@ -679,7 +723,7 @@ export default function OrderTracker() {
               data-testid="tab-tasks"
             >
               <CheckSquare className="w-4 h-4 ml-2" />
-              قسم إدارة المهام
+              {tasksSection?.name || "قسم إدارة المهام"}
             </button>
           </div>
         </div>
@@ -1028,6 +1072,17 @@ export default function OrderTracker() {
             <Printer className="w-4 h-4 ml-1" />
             طباعة
           </Button>
+          
+          {userRole === 'admin' && (
+            <Button 
+              variant="outline" 
+              onClick={handleOpenSections}
+              data-testid="button-manage-sections"
+            >
+              <Edit className="w-4 h-4 ml-1" />
+              إدارة أسماء الأقسام
+            </Button>
+          )}
         </div>
       </main>
 
@@ -1113,6 +1168,84 @@ export default function OrderTracker() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* Sections Management Modal */}
+      {sectionsModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" dir="rtl">
+          <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">إدارة أسماء الأقسام</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSectionsModalOpen(false)}
+                data-testid="button-close-sections"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              {sections.map((section) => (
+                <div key={section.id} className="space-y-2">
+                  <Label className="text-right">
+                    {section.baseType === 'orders' ? 'اسم قسم الطلبات' : 'اسم قسم المهام'}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      defaultValue={section.name}
+                      className="text-right"
+                      placeholder="أدخل اسم القسم"
+                      onBlur={(e) => {
+                        if (e.target.value !== section.name && e.target.value.trim()) {
+                          handleUpdateSectionName(section.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const target = e.target as HTMLInputElement;
+                          if (target.value !== section.name && target.value.trim()) {
+                            handleUpdateSectionName(section.id, target.value);
+                          }
+                        }
+                      }}
+                      data-testid={`input-section-name-${section.baseType}`}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const input = document.querySelector(`[data-testid="input-section-name-${section.baseType}"]`) as HTMLInputElement;
+                        if (input && input.value !== section.name && input.value.trim()) {
+                          handleUpdateSectionName(section.id, input.value);
+                        }
+                      }}
+                      disabled={updateSectionMutation.isPending}
+                      data-testid={`button-update-section-${section.baseType}`}
+                    >
+                      {updateSectionMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-end mt-6">
+              <Button
+                onClick={() => setSectionsModalOpen(false)}
+                data-testid="button-close-sections-modal"
+              >
+                إغلاق
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

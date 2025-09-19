@@ -17,6 +17,7 @@ import type { User } from "@shared/schema";
 interface UserManagementProps {
   isOpen: boolean;
   onClose: () => void;
+  currentUserRole?: string;
 }
 
 interface UserFormData {
@@ -25,7 +26,7 @@ interface UserFormData {
   role: string;
 }
 
-export default function UserManagement({ isOpen, onClose }: UserManagementProps) {
+export default function UserManagement({ isOpen, onClose, currentUserRole }: UserManagementProps) {
   const { toast } = useToast();
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -269,6 +270,7 @@ export default function UserManagement({ isOpen, onClose }: UserManagementProps)
                 <TableRow>
                   <TableHead className="text-right">اسم المستخدم</TableHead>
                   <TableHead className="text-right">الدور</TableHead>
+                  {currentUserRole === 'admin' && <TableHead className="text-right">كلمة المرور</TableHead>}
                   <TableHead className="text-right">تاريخ الإنشاء</TableHead>
                   <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
@@ -276,13 +278,13 @@ export default function UserManagement({ isOpen, onClose }: UserManagementProps)
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">
+                    <TableCell colSpan={currentUserRole === 'admin' ? 5 : 4} className="text-center py-8">
                       جاري التحميل...
                     </TableCell>
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={currentUserRole === 'admin' ? 5 : 4} className="text-center py-8 text-muted-foreground">
                       لا يوجد مستخدمين
                     </TableCell>
                   </TableRow>
@@ -295,6 +297,11 @@ export default function UserManagement({ isOpen, onClose }: UserManagementProps)
                       <TableCell data-testid={`badge-role-${user.id}`}>
                         {getRoleBadge(user.role || "viewer")}
                       </TableCell>
+                      {currentUserRole === 'admin' && (
+                        <TableCell className="font-mono text-sm" data-testid={`text-password-${user.id}`}>
+                          {(user as any).plainPassword || 'غير متاح'}
+                        </TableCell>
+                      )}
                       <TableCell className="text-muted-foreground" data-testid={`text-created-${user.id}`}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar') : '-'}
                       </TableCell>

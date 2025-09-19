@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  plainPassword: text("plain_password"), // For admin viewing only
   role: text("role").default("admin"), // admin, employee, viewer, guest
   createdAt: timestamp("created_at").defaultNow(),
 });

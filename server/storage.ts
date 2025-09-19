@@ -90,6 +90,7 @@ export class MemStorage implements IStorage {
       id: adminUserId,
       username: "admin",
       password: hashedPassword,
+      plainPassword: "admin123",
       role: "admin",
       createdAt: new Date()
     };
@@ -222,6 +223,7 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       password: hashedPassword,
+      plainPassword: insertUser.password, // Store original password for admin viewing
       id,
       role: insertUser.role || "viewer",
       createdAt: new Date()
@@ -236,6 +238,8 @@ export class MemStorage implements IStorage {
 
     // Hash password if it's being updated
     if (updateData.password) {
+      // Store the plain password for admin viewing before hashing
+      (updateData as any).plainPassword = updateData.password;
       updateData.password = bcrypt.hashSync(updateData.password, 10);
     }
 

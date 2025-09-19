@@ -135,3 +135,73 @@
     }
   }
 }
+
+/* Modern login page styles */
+.login-container {
+  animation: slideUp 0.6s ease-out;
+}
+
+.company-gradient {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+.company-name {
+  font-family: 'Droid Arabic Kufi', Arial, sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+.company-subtitle {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.login-card {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: slideUp 0.6s ease-out 0.2s both;
+}
+
+.login-input {
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.login-input:focus {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.input-group {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 223, 0, 0.3);
+  }
+  to {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 223, 0, 0.6), 0 0 30px rgba(255, 223, 0, 0.3);
+  }
+}

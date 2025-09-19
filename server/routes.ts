@@ -566,8 +566,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users", requireAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      // Don't return passwords
-      const safeUsers = users.map(user => ({ ...user, password: undefined }));
+      // Admin can see plain passwords, others cannot
+      const safeUsers = users.map(user => ({ 
+        ...user, 
+        password: undefined, // Always hide hashed password
+        plainPassword: req.user.role === 'admin' ? user.plainPassword : undefined
+      }));
       res.json(safeUsers);
     } catch (error) {
       res.status(500).json({ message: "خطأ في استرجاع المستخدمين" });

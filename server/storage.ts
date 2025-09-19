@@ -12,52 +12,55 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
 
   // Order methods
-  getAllOrders(): Promise<Order[]>;
-  getOrder(id: string): Promise<Order | undefined>;
-  createOrder(order: InsertOrder): Promise<Order>;
-  updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
-  deleteOrder(id: string): Promise<boolean>;
+  getAllOrders(ownerId: string): Promise<Order[]>;
+  getOrder(id: string, ownerId: string): Promise<Order | undefined>;
+  createOrder(order: InsertOrder, ownerId: string): Promise<Order>;
+  updateOrder(id: string, order: Partial<InsertOrder>, ownerId: string): Promise<Order | undefined>;
+  deleteOrder(id: string, ownerId: string): Promise<boolean>;
 
   // Note methods
-  getNotesByOrderId(orderId: string): Promise<Note[]>;
-  getNote(id: string): Promise<Note | undefined>;
-  createNote(note: InsertNote): Promise<Note>;
-  updateNote(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
-  deleteNote(id: string): Promise<boolean>;
+  getNotesByOrderId(orderId: string, ownerId: string): Promise<Note[]>;
+  getNote(id: string, ownerId: string): Promise<Note | undefined>;
+  createNote(note: InsertNote, ownerId: string): Promise<Note>;
+  updateNote(id: string, note: Partial<InsertNote>, ownerId: string): Promise<Note | undefined>;
+  deleteNote(id: string, ownerId: string): Promise<boolean>;
 
   // Task methods
-  getAllTasks(): Promise<Task[]>;
-  getTask(id: string): Promise<Task | undefined>;
-  createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
-  deleteTask(id: string): Promise<boolean>;
+  getAllTasks(ownerId: string): Promise<Task[]>;
+  getTask(id: string, ownerId: string): Promise<Task | undefined>;
+  createTask(task: InsertTask, ownerId: string): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>, ownerId: string): Promise<Task | undefined>;
+  deleteTask(id: string, ownerId: string): Promise<boolean>;
 
   // Task Note methods
-  getTaskNotesByTaskId(taskId: string): Promise<TaskNote[]>;
-  getTaskNote(id: string): Promise<TaskNote | undefined>;
-  createTaskNote(note: InsertTaskNote): Promise<TaskNote>;
-  updateTaskNote(id: string, note: Partial<InsertTaskNote>): Promise<TaskNote | undefined>;
-  deleteTaskNote(id: string): Promise<boolean>;
+  getTaskNotesByTaskId(taskId: string, ownerId: string): Promise<TaskNote[]>;
+  getTaskNote(id: string, ownerId: string): Promise<TaskNote | undefined>;
+  createTaskNote(note: InsertTaskNote, ownerId: string): Promise<TaskNote>;
+  updateTaskNote(id: string, note: Partial<InsertTaskNote>, ownerId: string): Promise<TaskNote | undefined>;
+  deleteTaskNote(id: string, ownerId: string): Promise<boolean>;
 
   // Attachment methods
-  getAttachmentsByTaskId(taskId: string): Promise<Attachment[]>;
-  getAttachment(id: string): Promise<Attachment | undefined>;
-  createAttachment(attachment: InsertAttachment): Promise<Attachment>;
-  deleteAttachment(id: string): Promise<boolean>;
+  getAttachmentsByTaskId(taskId: string, ownerId: string): Promise<Attachment[]>;
+  getAttachment(id: string, ownerId: string): Promise<Attachment | undefined>;
+  createAttachment(attachment: InsertAttachment, ownerId: string): Promise<Attachment>;
+  deleteAttachment(id: string, ownerId: string): Promise<boolean>;
 
   // Settings methods
-  getSettings(): Promise<Settings | undefined>;
-  updateSettings(settings: Partial<InsertSettings>): Promise<Settings>;
+  getSettings(ownerId: string): Promise<Settings | undefined>;
+  updateSettings(settings: Partial<InsertSettings>, ownerId: string): Promise<Settings>;
 
   // Section methods
-  getAllSections(): Promise<Section[]>;
-  getSection(id: string): Promise<Section | undefined>;
-  createSection(section: InsertSection): Promise<Section>;
-  updateSection(id: string, section: Partial<InsertSection>): Promise<Section | undefined>;
-  deleteSection(id: string): Promise<boolean>;
+  getAllSections(ownerId: string): Promise<Section[]>;
+  getSection(id: string, ownerId: string): Promise<Section | undefined>;
+  createSection(section: InsertSection, ownerId: string): Promise<Section>;
+  updateSection(id: string, section: Partial<InsertSection>, ownerId: string): Promise<Section | undefined>;
+  deleteSection(id: string, ownerId: string): Promise<boolean>;
 
-  // PIN verification
-  verifyPin(pin: string): Promise<boolean>;
+  // User-specific initialization
+  initUserDefaults(userId: string): Promise<void>;
+
+  // PIN verification (user-scoped)
+  verifyPin(pin: string, ownerId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -67,7 +70,7 @@ export class MemStorage implements IStorage {
   private tasks: Map<string, Task>;
   private taskNotes: Map<string, TaskNote>;
   private attachments: Map<string, Attachment>;
-  private settings: Settings | undefined;
+  private settings: Map<string, Settings>; // Per-user settings
   private sections: Map<string, Section>;
 
   constructor() {
@@ -77,12 +80,14 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.taskNotes = new Map();
     this.attachments = new Map();
+    this.settings = new Map(); // Per-user settings map
     this.sections = new Map();
     
     // Initialize with default admin user (password will be hashed)
     const hashedPassword = bcrypt.hashSync("admin123", 10);
+    const adminUserId = randomUUID();
     const adminUser: User = {
-      id: randomUUID(),
+      id: adminUserId,
       username: "admin",
       password: hashedPassword,
       role: "admin",
@@ -90,9 +95,10 @@ export class MemStorage implements IStorage {
     };
     this.users.set(adminUser.id, adminUser);
 
-    // Initialize default settings
-    this.settings = {
+    // Initialize default settings for admin user
+    const adminSettings: Settings = {
       id: randomUUID(),
+      ownerId: adminUserId,
       ordersSectionName: "طلبات الكهرباء",
       tasksSectionName: "قسم إدارة المهام",
       backgroundColor: "#ffffff",
@@ -102,6 +108,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    this.settings.set(adminUserId, adminSettings);
 
     // Initialize default sections
     const defaultSections = [
@@ -137,6 +144,7 @@ export class MemStorage implements IStorage {
     defaultSections.forEach(sectionData => {
       const section: Section = {
         id: randomUUID(),
+        ownerId: adminUserId,
         ...sectionData,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -162,6 +170,7 @@ export class MemStorage implements IStorage {
     sampleOrders.forEach(orderData => {
       const order: Order = {
         id: randomUUID(),
+        ownerId: adminUserId,
         orderNumber: orderData.orderNumber,
         partNumber: orderData.partNumber,
         lastInquiry: "",
@@ -183,6 +192,7 @@ export class MemStorage implements IStorage {
     sampleTasks.forEach(taskData => {
       const task: Task = {
         id: randomUUID(),
+        ownerId: adminUserId,
         taskName: taskData.taskName,
         taskType: taskData.taskType,
         lastInquiry: "",
@@ -246,23 +256,29 @@ export class MemStorage implements IStorage {
   }
 
   // Order methods
-  async getAllOrders(): Promise<Order[]> {
-    return Array.from(this.orders.values()).sort((a, b) => {
+  async getAllOrders(ownerId: string): Promise<Order[]> {
+    const orders = Array.from(this.orders.values()).filter(order => order.ownerId === ownerId);
+    return orders.sort((a, b) => {
       const dateB = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const dateA = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
       return dateA - dateB;
     });
   }
 
-  async getOrder(id: string): Promise<Order | undefined> {
-    return this.orders.get(id);
+  async getOrder(id: string, ownerId: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order || order.ownerId !== ownerId) {
+      return undefined;
+    }
+    return order;
   }
 
-  async createOrder(insertOrder: InsertOrder): Promise<Order> {
+  async createOrder(insertOrder: InsertOrder, ownerId: string): Promise<Order> {
     const id = randomUUID();
     const now = new Date();
     const order: Order = { 
       id,
+      ownerId,
       orderNumber: insertOrder.orderNumber,
       partNumber: insertOrder.partNumber || null,
       lastInquiry: insertOrder.lastInquiry || null,
@@ -274,9 +290,9 @@ export class MemStorage implements IStorage {
     return order;
   }
 
-  async updateOrder(id: string, updateData: Partial<InsertOrder>): Promise<Order | undefined> {
+  async updateOrder(id: string, updateData: Partial<InsertOrder>, ownerId: string): Promise<Order | undefined> {
     const existingOrder = this.orders.get(id);
-    if (!existingOrder) return undefined;
+    if (!existingOrder || existingOrder.ownerId !== ownerId) return undefined;
 
     const updatedOrder: Order = {
       ...existingOrder,
@@ -287,29 +303,51 @@ export class MemStorage implements IStorage {
     return updatedOrder;
   }
 
-  async deleteOrder(id: string): Promise<boolean> {
+  async deleteOrder(id: string, ownerId: string): Promise<boolean> {
+    const order = this.orders.get(id);
+    if (!order || order.ownerId !== ownerId) return false;
+    
     const deleted = this.orders.delete(id);
-    // Also delete associated notes
-    const orderNotes = Array.from(this.notes.values()).filter(note => note.orderId === id);
+    // Also delete associated notes belonging to the same owner
+    const orderNotes = Array.from(this.notes.values()).filter(note => 
+      note.orderId === id && note.ownerId === ownerId
+    );
     orderNotes.forEach(note => this.notes.delete(note.id));
     return deleted;
   }
 
   // Note methods
-  async getNotesByOrderId(orderId: string): Promise<Note[]> {
-    return Array.from(this.notes.values()).filter(note => note.orderId === orderId);
+  async getNotesByOrderId(orderId: string, ownerId: string): Promise<Note[]> {
+    // Verify the order belongs to the user before returning notes
+    const order = await this.getOrder(orderId, ownerId);
+    if (!order) return [];
+    
+    return Array.from(this.notes.values()).filter(note => 
+      note.orderId === orderId && note.ownerId === ownerId
+    );
   }
 
-  async getNote(id: string): Promise<Note | undefined> {
-    return this.notes.get(id);
+  async getNote(id: string, ownerId: string): Promise<Note | undefined> {
+    const note = this.notes.get(id);
+    if (!note || note.ownerId !== ownerId) {
+      return undefined;
+    }
+    return note;
   }
 
-  async createNote(insertNote: InsertNote): Promise<Note> {
+  async createNote(insertNote: InsertNote, ownerId: string): Promise<Note> {
+    // Verify the order belongs to the user
+    const order = await this.getOrder(insertNote.orderId, ownerId);
+    if (!order) {
+      throw new Error("Order not found or access denied");
+    }
+    
     const id = randomUUID();
     const now = new Date();
     const note: Note = { 
       ...insertNote, 
       id,
+      ownerId,
       createdAt: now,
       updatedAt: now
     };
@@ -317,9 +355,9 @@ export class MemStorage implements IStorage {
     return note;
   }
 
-  async updateNote(id: string, updateData: Partial<InsertNote>): Promise<Note | undefined> {
+  async updateNote(id: string, updateData: Partial<InsertNote>, ownerId: string): Promise<Note | undefined> {
     const existingNote = this.notes.get(id);
-    if (!existingNote) return undefined;
+    if (!existingNote || existingNote.ownerId !== ownerId) return undefined;
 
     const updatedNote: Note = {
       ...existingNote,
@@ -330,28 +368,36 @@ export class MemStorage implements IStorage {
     return updatedNote;
   }
 
-  async deleteNote(id: string): Promise<boolean> {
+  async deleteNote(id: string, ownerId: string): Promise<boolean> {
+    const note = this.notes.get(id);
+    if (!note || note.ownerId !== ownerId) return false;
     return this.notes.delete(id);
   }
 
   // Task methods
-  async getAllTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values()).sort((a, b) => {
+  async getAllTasks(ownerId: string): Promise<Task[]> {
+    const tasks = Array.from(this.tasks.values()).filter(task => task.ownerId === ownerId);
+    return tasks.sort((a, b) => {
       const dateB = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const dateA = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
       return dateA - dateB;
     });
   }
 
-  async getTask(id: string): Promise<Task | undefined> {
-    return this.tasks.get(id);
+  async getTask(id: string, ownerId: string): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task || task.ownerId !== ownerId) {
+      return undefined;
+    }
+    return task;
   }
 
-  async createTask(insertTask: InsertTask): Promise<Task> {
+  async createTask(insertTask: InsertTask, ownerId: string): Promise<Task> {
     const id = randomUUID();
     const now = new Date();
     const task: Task = { 
       id,
+      ownerId,
       taskName: insertTask.taskName,
       taskType: insertTask.taskType || null,
       lastInquiry: insertTask.lastInquiry || null,
@@ -364,9 +410,9 @@ export class MemStorage implements IStorage {
     return task;
   }
 
-  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+  async updateTask(id: string, updateData: Partial<InsertTask>, ownerId: string): Promise<Task | undefined> {
     const existingTask = this.tasks.get(id);
-    if (!existingTask) return undefined;
+    if (!existingTask || existingTask.ownerId !== ownerId) return undefined;
 
     const updatedTask: Task = {
       ...existingTask,
@@ -377,33 +423,57 @@ export class MemStorage implements IStorage {
     return updatedTask;
   }
 
-  async deleteTask(id: string): Promise<boolean> {
+  async deleteTask(id: string, ownerId: string): Promise<boolean> {
+    const task = this.tasks.get(id);
+    if (!task || task.ownerId !== ownerId) return false;
+    
     const deleted = this.tasks.delete(id);
-    // Also delete associated task notes and attachments
-    const relatedTaskNotes = Array.from(this.taskNotes.values()).filter(note => note.taskId === id);
+    // Also delete associated task notes and attachments belonging to the same owner
+    const relatedTaskNotes = Array.from(this.taskNotes.values()).filter(note => 
+      note.taskId === id && note.ownerId === ownerId
+    );
     relatedTaskNotes.forEach(note => this.taskNotes.delete(note.id));
     
-    const relatedAttachments = Array.from(this.attachments.values()).filter(attachment => attachment.taskId === id);
+    const relatedAttachments = Array.from(this.attachments.values()).filter(attachment => 
+      attachment.taskId === id && attachment.ownerId === ownerId
+    );
     relatedAttachments.forEach(attachment => this.attachments.delete(attachment.id));
     
     return deleted;
   }
 
   // Task Note methods
-  async getTaskNotesByTaskId(taskId: string): Promise<TaskNote[]> {
-    return Array.from(this.taskNotes.values()).filter(note => note.taskId === taskId);
+  async getTaskNotesByTaskId(taskId: string, ownerId: string): Promise<TaskNote[]> {
+    // Verify the task belongs to the user before returning notes
+    const task = await this.getTask(taskId, ownerId);
+    if (!task) return [];
+    
+    return Array.from(this.taskNotes.values()).filter(note => 
+      note.taskId === taskId && note.ownerId === ownerId
+    );
   }
 
-  async getTaskNote(id: string): Promise<TaskNote | undefined> {
-    return this.taskNotes.get(id);
+  async getTaskNote(id: string, ownerId: string): Promise<TaskNote | undefined> {
+    const taskNote = this.taskNotes.get(id);
+    if (!taskNote || taskNote.ownerId !== ownerId) {
+      return undefined;
+    }
+    return taskNote;
   }
 
-  async createTaskNote(insertTaskNote: InsertTaskNote): Promise<TaskNote> {
+  async createTaskNote(insertTaskNote: InsertTaskNote, ownerId: string): Promise<TaskNote> {
+    // Verify the task belongs to the user
+    const task = await this.getTask(insertTaskNote.taskId, ownerId);
+    if (!task) {
+      throw new Error("Task not found or access denied");
+    }
+    
     const id = randomUUID();
     const now = new Date();
     const taskNote: TaskNote = { 
       ...insertTaskNote, 
       id,
+      ownerId,
       createdAt: now,
       updatedAt: now
     };
@@ -411,9 +481,9 @@ export class MemStorage implements IStorage {
     return taskNote;
   }
 
-  async updateTaskNote(id: string, updateData: Partial<InsertTaskNote>): Promise<TaskNote | undefined> {
+  async updateTaskNote(id: string, updateData: Partial<InsertTaskNote>, ownerId: string): Promise<TaskNote | undefined> {
     const existingNote = this.taskNotes.get(id);
-    if (!existingNote) return undefined;
+    if (!existingNote || existingNote.ownerId !== ownerId) return undefined;
 
     const updatedNote: TaskNote = {
       ...existingNote,
@@ -424,79 +494,103 @@ export class MemStorage implements IStorage {
     return updatedNote;
   }
 
-  async deleteTaskNote(id: string): Promise<boolean> {
+  async deleteTaskNote(id: string, ownerId: string): Promise<boolean> {
+    const taskNote = this.taskNotes.get(id);
+    if (!taskNote || taskNote.ownerId !== ownerId) return false;
     return this.taskNotes.delete(id);
   }
 
   // Attachment methods
-  async getAttachmentsByTaskId(taskId: string): Promise<Attachment[]> {
-    return Array.from(this.attachments.values()).filter(attachment => attachment.taskId === taskId);
+  async getAttachmentsByTaskId(taskId: string, ownerId: string): Promise<Attachment[]> {
+    // Verify the task belongs to the user before returning attachments
+    const task = await this.getTask(taskId, ownerId);
+    if (!task) return [];
+    
+    return Array.from(this.attachments.values()).filter(attachment => 
+      attachment.taskId === taskId && attachment.ownerId === ownerId
+    );
   }
 
-  async getAttachment(id: string): Promise<Attachment | undefined> {
-    return this.attachments.get(id);
+  async getAttachment(id: string, ownerId: string): Promise<Attachment | undefined> {
+    const attachment = this.attachments.get(id);
+    if (!attachment || attachment.ownerId !== ownerId) {
+      return undefined;
+    }
+    return attachment;
   }
 
-  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+  async createAttachment(insertAttachment: InsertAttachment, ownerId: string): Promise<Attachment> {
+    // Verify the task belongs to the user
+    const task = await this.getTask(insertAttachment.taskId, ownerId);
+    if (!task) {
+      throw new Error("Task not found or access denied");
+    }
+    
     const id = randomUUID();
     const attachment: Attachment = { 
       ...insertAttachment, 
       id,
+      ownerId,
       createdAt: new Date()
     };
     this.attachments.set(id, attachment);
     return attachment;
   }
 
-  async deleteAttachment(id: string): Promise<boolean> {
+  async deleteAttachment(id: string, ownerId: string): Promise<boolean> {
+    const attachment = this.attachments.get(id);
+    if (!attachment || attachment.ownerId !== ownerId) return false;
     return this.attachments.delete(id);
   }
 
   // Settings methods
-  async getSettings(): Promise<Settings | undefined> {
-    return this.settings;
+  async getSettings(ownerId: string): Promise<Settings | undefined> {
+    return this.settings.get(ownerId);
   }
 
-  async updateSettings(updateData: Partial<InsertSettings>): Promise<Settings> {
-    if (!this.settings) {
-      // Create new settings if none exist
-      this.settings = {
-        id: randomUUID(),
-        ordersSectionName: "طلبات الكهرباء",
-        tasksSectionName: "قسم إدارة المهام",
-        backgroundColor: "#ffffff",
-        pinHash: null,
-        allowGuest: "true",
-        companyLogo: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-    }
-
-    this.settings = {
-      ...this.settings,
+  async updateSettings(updateData: Partial<InsertSettings>, ownerId: string): Promise<Settings> {
+    const existingSettings = this.settings.get(ownerId);
+    
+    const updatedSettings: Settings = {
+      id: existingSettings?.id || randomUUID(),
+      ownerId,
+      createdAt: existingSettings?.createdAt || new Date(),
+      ordersSectionName: "طلبات الكهرباء",
+      tasksSectionName: "قسم إدارة المهام",
+      backgroundColor: "#ffffff",
+      pinHash: null,
+      allowGuest: "true",
+      companyLogo: null,
       ...updateData,
       updatedAt: new Date()
     };
-    return this.settings;
+    
+    this.settings.set(ownerId, updatedSettings);
+    return updatedSettings;
   }
 
   // Section methods
-  async getAllSections(): Promise<Section[]> {
-    return Array.from(this.sections.values()).sort((a, b) => {
+  async getAllSections(ownerId: string): Promise<Section[]> {
+    const sections = Array.from(this.sections.values()).filter(section => section.ownerId === ownerId);
+    return sections.sort((a, b) => {
       return parseInt(a.orderIndex || "0") - parseInt(b.orderIndex || "0");
     });
   }
 
-  async getSection(id: string): Promise<Section | undefined> {
-    return this.sections.get(id);
+  async getSection(id: string, ownerId: string): Promise<Section | undefined> {
+    const section = this.sections.get(id);
+    if (!section || section.ownerId !== ownerId) {
+      return undefined;
+    }
+    return section;
   }
 
-  async createSection(insertSection: InsertSection): Promise<Section> {
+  async createSection(insertSection: InsertSection, ownerId: string): Promise<Section> {
     const id = randomUUID();
     const now = new Date();
     const section: Section = { 
       id,
+      ownerId,
       name: insertSection.name,
       baseType: insertSection.baseType,
       orderIndex: insertSection.orderIndex || "0",
@@ -510,9 +604,9 @@ export class MemStorage implements IStorage {
     return section;
   }
 
-  async updateSection(id: string, updateData: Partial<InsertSection>): Promise<Section | undefined> {
+  async updateSection(id: string, updateData: Partial<InsertSection>, ownerId: string): Promise<Section | undefined> {
     const existingSection = this.sections.get(id);
-    if (!existingSection) return undefined;
+    if (!existingSection || existingSection.ownerId !== ownerId) return undefined;
 
     const updatedSection: Section = {
       ...existingSection,
@@ -523,8 +617,59 @@ export class MemStorage implements IStorage {
     return updatedSection;
   }
 
-  async deleteSection(id: string): Promise<boolean> {
+  async deleteSection(id: string, ownerId: string): Promise<boolean> {
+    const section = this.sections.get(id);
+    if (!section || section.ownerId !== ownerId) return false;
     return this.sections.delete(id);
+  }
+
+  // User-specific initialization
+  async initUserDefaults(userId: string): Promise<void> {
+    // Create default sections for the user
+    const defaultSections = [
+      {
+        name: "طلبات الكهرباء",
+        baseType: "orders",
+        color: "#3b82f6",
+        orderIndex: "0",
+        columnLabels: JSON.stringify({
+          orderNumber: "رقم الطلب",
+          partNumber: "رقم القطعة", 
+          status: "حالة الطلب",
+          lastInquiry: "تاريخ آخر استفسار"
+        }),
+        isActive: "true"
+      },
+      {
+        name: "قسم إدارة المهام",
+        baseType: "tasks",
+        color: "#10b981",
+        orderIndex: "1",
+        columnLabels: JSON.stringify({
+          taskName: "اسم المهمة",
+          taskType: "نوع المهمة",
+          taskStatus: "حالة المهمة",
+          dueDate: "تاريخ الاستحقاق",
+          lastInquiry: "تاريخ آخر استفسار"
+        }),
+        isActive: "true"
+      }
+    ];
+
+    // Create sections for the user
+    for (const sectionData of defaultSections) {
+      await this.createSection(sectionData, userId);
+    }
+
+    // Create default settings for the user (optional)
+    const defaultSettings = {
+      ordersSectionName: "طلبات الكهرباء",
+      tasksSectionName: "قسم إدارة المهام",
+      backgroundColor: "#ffffff",
+      allowGuest: "true"
+    };
+    
+    await this.updateSettings(defaultSettings, userId);
   }
 
   // PIN verification

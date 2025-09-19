@@ -92,6 +92,19 @@ export const sections = pgTable("sections", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const personalNotes = pgTable("personal_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull().unique(),
+  tab1Name: text("tab1_name").default("ملاحظة 1"),
+  tab1Content: text("tab1_content").default(""),
+  tab2Name: text("tab2_name").default("ملاحظة 2"),
+  tab2Content: text("tab2_content").default(""),
+  tab3Name: text("tab3_name").default("ملاحظة 3"),
+  tab3Content: text("tab3_content").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -148,6 +161,13 @@ export const insertSectionSchema = createInsertSchema(sections).omit({
   updatedAt: true,
 });
 
+export const insertPersonalNotesSchema = createInsertSchema(personalNotes).omit({
+  id: true,
+  ownerId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
@@ -164,3 +184,5 @@ export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type InsertSection = z.infer<typeof insertSectionSchema>;
 export type Section = typeof sections.$inferSelect;
+export type InsertPersonalNotes = z.infer<typeof insertPersonalNotesSchema>;
+export type PersonalNotes = typeof personalNotes.$inferSelect;

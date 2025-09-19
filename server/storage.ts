@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Order, type InsertOrder, type Note, type InsertNote, type Task, type InsertTask, type TaskNote, type InsertTaskNote, type Attachment, type InsertAttachment, type Settings, type InsertSettings, type Section, type InsertSection } from "@shared/schema";
+import { type User, type InsertUser, type Order, type InsertOrder, type Note, type InsertNote, type Task, type InsertTask, type TaskNote, type InsertTaskNote, type Attachment, type InsertAttachment, type Settings, type InsertSettings, type Section, type InsertSection, type PersonalNotes, type InsertPersonalNotes } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -61,6 +61,10 @@ export interface IStorage {
 
   // PIN verification (user-scoped)
   verifyPin(pin: string, ownerId: string): Promise<boolean>;
+
+  // Personal Notes methods
+  getPersonalNotes(ownerId: string): Promise<PersonalNotes | undefined>;
+  updatePersonalNotes(notes: Partial<InsertPersonalNotes>, ownerId: string): Promise<PersonalNotes>;
 }
 
 export class MemStorage implements IStorage {
@@ -72,6 +76,7 @@ export class MemStorage implements IStorage {
   private attachments: Map<string, Attachment>;
   private settings: Map<string, Settings>; // Per-user settings
   private sections: Map<string, Section>;
+  private personalNotes: Map<string, PersonalNotes>; // Per-user personal notes
 
   constructor() {
     this.users = new Map();
@@ -82,6 +87,7 @@ export class MemStorage implements IStorage {
     this.attachments = new Map();
     this.settings = new Map(); // Per-user settings map
     this.sections = new Map();
+    this.personalNotes = new Map(); // Per-user personal notes map
     
     // Initialize with default admin user (password will be hashed)
     const hashedPassword = bcrypt.hashSync("admin123", 10);

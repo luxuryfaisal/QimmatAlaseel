@@ -350,70 +350,99 @@ export default function ModernHeader({
           </div>
 
           {/* Admin Profile Picture Card */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center" data-testid="card-admin-profile">
-            {userRole === 'admin' ? (
-              <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
-                <DialogTrigger asChild>
-                  <button className="w-full h-full flex flex-col items-center justify-center hover:bg-white/5 rounded transition-colors" data-testid="button-admin-profile">
-                    {adminProfilePic ? (
-                      <img 
-                        src={adminProfilePic} 
-                        alt="صورة المدير" 
-                        className="w-12 h-12 rounded-full object-cover mb-2"
-                        data-testid="img-admin-profile"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-2">
-                        <Camera className="w-6 h-6 text-blue-200" />
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden" data-testid="card-admin-profile">
+            {adminProfilePic ? (
+              <div className="relative w-full h-full">
+                <img 
+                  src={adminProfilePic} 
+                  alt="صورة المدير" 
+                  className="w-full h-full object-cover"
+                  data-testid="img-admin-profile"
+                />
+                {userRole === 'admin' && (
+                  <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
+                    <DialogTrigger asChild>
+                      <button 
+                        className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100" 
+                        data-testid="button-admin-profile"
+                      >
+                        <Camera className="w-6 h-6 text-white" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
+                      <DialogHeader>
+                        <DialogTitle className="text-right">إدارة صورة المدير</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="flex justify-center">
+                          <img 
+                            src={adminProfilePic} 
+                            alt="صورة المدير الحالية" 
+                            className="w-24 h-24 rounded-full object-cover"
+                            data-testid="img-current-admin-profile"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
+                          <Input 
+                            id="profile-pic-upload"
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleProfilePicUpload}
+                            className="text-right"
+                            data-testid="input-profile-pic-upload"
+                          />
+                        </div>
+                        <div className="flex justify-end space-x-reverse space-x-2">
+                          <Button onClick={removeProfilePic} variant="destructive" data-testid="button-remove-profile">
+                            <X className="w-4 h-4 ml-2" />
+                            حذف الصورة
+                          </Button>
+                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
+                            إغلاق
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                    <div className="text-xs text-blue-200">صورة المدير</div>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
-                  <DialogHeader>
-                    <DialogTitle className="text-right">إدارة صورة المدير</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    {adminProfilePic && (
-                      <div className="flex justify-center">
-                        <img 
-                          src={adminProfilePic} 
-                          alt="صورة المدير الحالية" 
-                          className="w-24 h-24 rounded-full object-cover"
-                          data-testid="img-current-admin-profile"
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
-                      <Input 
-                        id="profile-pic-upload"
-                        type="file" 
-                        accept="image/*"
-                        onChange={handleProfilePicUpload}
-                        className="text-right"
-                        data-testid="input-profile-pic-upload"
-                      />
-                    </div>
-                    <div className="flex justify-end space-x-reverse space-x-2">
-                      {adminProfilePic && (
-                        <Button onClick={removeProfilePic} variant="destructive" data-testid="button-remove-profile">
-                          <X className="w-4 h-4 ml-2" />
-                          حذف الصورة
-                        </Button>
-                      )}
-                      <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
-                        إغلاق
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center opacity-50" data-testid="placeholder-admin-only">
-                <User className="w-8 h-8 text-blue-200 mb-2" />
-                <div className="text-xs text-blue-200">خاص بالمدير</div>
+              <div className="w-full h-full flex items-center justify-center p-4" data-testid="placeholder-no-profile">
+                {userRole === 'admin' ? (
+                  <Dialog open={profilePicDialogOpen} onOpenChange={setProfilePicDialogOpen}>
+                    <DialogTrigger asChild>
+                      <button className="w-full h-full flex items-center justify-center hover:bg-white/5 rounded transition-colors" data-testid="button-add-profile">
+                        <Camera className="w-8 h-8 text-blue-200" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md" data-testid="dialog-admin-profile">
+                      <DialogHeader>
+                        <DialogTitle className="text-right">إضافة صورة المدير</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="profile-pic-upload" className="text-right">رفع صورة جديدة</Label>
+                          <Input 
+                            id="profile-pic-upload"
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleProfilePicUpload}
+                            className="text-right"
+                            data-testid="input-profile-pic-upload"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <Button onClick={() => setProfilePicDialogOpen(false)} variant="outline" data-testid="button-close-profile-dialog">
+                            إغلاق
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <User className="w-8 h-8 text-blue-200/50" />
+                )}
               </div>
             )}
           </div>

@@ -5,8 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Lock, User, Loader2 } from "lucide-react";
+import { Lock, User, Loader2, Building2 } from "lucide-react";
 import type { User as UserType } from "@shared/schema";
+import logoImage from "@assets/Picsart_25-09-19_00-28-14-307_1758250619138.png";
 
 
 interface AuthModalProps {
@@ -84,125 +85,162 @@ export default function AuthModal({ onLogin }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-900/90 via-purple-900/90 to-blue-800/90 backdrop-blur-sm flex items-center justify-center z-50" dir="rtl">
-      <div className="login-container w-full max-w-md mx-4">
+    <div 
+      className="fixed inset-0 flex items-center justify-center z-50" 
+      style={{
+        backgroundImage: `
+          radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+          linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.95) 100%),
+          url(${logoImage})
+        `,
+        backgroundSize: '300px, 300px, 300px, cover, 80%',
+        backgroundPosition: 'top left, bottom right, center, center, center',
+        backgroundRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat, no-repeat'
+      }}
+      dir="rtl"
+    >
+      {/* Animated background overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-blue-900/75 to-slate-800/90 backdrop-blur-[2px]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))]" />
+      </div>
+      
+      <div className="login-container w-full max-w-md mx-4 relative z-10">
         {/* Company Name Header */}
         <div className="text-center mb-8">
-          <div className="company-logo-container mb-4">
-            <div className="company-gradient w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl animate-pulse">
-              <Lock className="w-10 h-10 text-white" />
+          <div className="company-logo-container mb-6">
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-amber-400/20 rounded-full blur-xl animate-pulse" />
+              <div className="relative w-24 h-24 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600/80 to-amber-500/80 shadow-2xl border border-white/20 backdrop-blur-sm">
+                <Building2 className="w-12 h-12 text-white drop-shadow-lg" />
+              </div>
             </div>
           </div>
-          <h1 className="company-name text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg">
+          <h1 className="company-name text-5xl font-bold mb-3 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 bg-clip-text text-transparent drop-shadow-2xl">
             شركة قمة الأصيل
           </h1>
-          <p className="company-subtitle text-white/80 text-lg font-medium mb-2">
+          <p className="company-subtitle text-blue-200/90 text-xl font-medium mb-2 drop-shadow-lg">
             للعقارات
           </p>
+          <div className="w-24 h-1 bg-gradient-to-r from-amber-400 to-yellow-500 mx-auto rounded-full shadow-lg" />
         </div>
         
-        <Card className="login-card shadow-2xl border-0 bg-white/10 backdrop-blur-md">
-          <CardContent className="pt-6">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">دخول النظام</h2>
-              <p className="text-white/70">الرجاء اختيار طريقة الدخول للوصول إلى نظام تتبع الطلبات</p>
+        <Card className="login-card shadow-2xl border border-white/10 bg-white/5 backdrop-blur-xl">
+          <CardContent className="pt-8 pb-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-3 drop-shadow-lg">دخول النظام</h2>
+              <p className="text-blue-200/80 text-lg leading-relaxed">الرجاء اختيار طريقة الدخول للوصول إلى نظام تتبع الطلبات</p>
             </div>
             
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-3 mb-8">
               <Button
                 type="button"
                 variant={authMode === 'login' ? 'default' : 'outline'}
                 onClick={() => setAuthMode('login')}
-                className={`flex-1 transition-all duration-300 transform hover:scale-105 ${
+                className={`flex-1 py-4 text-lg font-semibold transition-all duration-500 transform hover:scale-105 hover:shadow-xl ${
                   authMode === 'login'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 border-0 shadow-lg text-white'
-                    : 'bg-white/20 border-white/30 text-white hover:bg-white/30'
+                    ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 border-0 shadow-lg text-white ring-2 ring-blue-400/30'
+                    : 'bg-white/10 border-white/20 text-blue-200 hover:bg-white/20 backdrop-blur-sm'
                 }`}
                 data-testid="button-login-mode"
               >
+                <Building2 className="w-5 h-5 ml-2" />
                 دخول مدير
               </Button>
               <Button
                 type="button"
                 variant={authMode === 'guest' ? 'default' : 'outline'}
                 onClick={() => setAuthMode('guest')}
-                className={`flex-1 transition-all duration-300 transform hover:scale-105 ${
+                className={`flex-1 py-4 text-lg font-semibold transition-all duration-500 transform hover:scale-105 hover:shadow-xl ${
                   authMode === 'guest'
-                    ? 'bg-gradient-to-r from-green-600 to-teal-600 border-0 shadow-lg text-white'
-                    : 'bg-white/20 border-white/30 text-white hover:bg-white/30'
+                    ? 'bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 border-0 shadow-lg text-white ring-2 ring-emerald-400/30'
+                    : 'bg-white/10 border-white/20 text-blue-200 hover:bg-white/20 backdrop-blur-sm'
                 }`}
                 data-testid="button-guest-mode"
               >
+                <User className="w-5 h-5 ml-2" />
                 دخول زائر
               </Button>
             </div>
             
             {authMode === 'login' ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="input-group">
-                <label className="block text-sm font-medium text-white mb-2">
-                  <User className="w-4 h-4 inline ml-1" />
+                <label className="block text-lg font-medium text-blue-200 mb-3">
+                  <User className="w-5 h-5 inline ml-2" />
                   اسم المستخدم
                 </label>
-                <Input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="أدخل اسم المستخدم"
-                  className="login-input bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 transition-all duration-300"
-                  required
-                  data-testid="input-username"
-                />
+                <div className="relative">
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="أدخل اسم المستخدم"
+                    className="login-input bg-white/10 border-white/20 text-white placeholder:text-blue-200/60 focus:bg-white/20 focus:border-blue-400/50 h-14 text-lg backdrop-blur-sm transition-all duration-500 shadow-lg"
+                    required
+                    data-testid="input-username"
+                  />
+                  <div className="absolute inset-0 rounded-md bg-gradient-to-r from-blue-500/10 to-transparent pointer-events-none" />
+                </div>
               </div>
               
               <div className="input-group">
-                <label className="block text-sm font-medium text-white mb-2">
-                  <Lock className="w-4 h-4 inline ml-1" />
+                <label className="block text-lg font-medium text-blue-200 mb-3">
+                  <Lock className="w-5 h-5 inline ml-2" />
                   كلمة المرور
                 </label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="أدخل كلمة المرور"
-                  className="login-input bg-white/20 border-white/30 text-white placeholder:text-white/60 focus:bg-white/30 focus:border-white/50 transition-all duration-300"
-                  required
-                  data-testid="input-password"
-                />
+                <div className="relative">
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="أدخل كلمة المرور"
+                    className="login-input bg-white/10 border-white/20 text-white placeholder:text-blue-200/60 focus:bg-white/20 focus:border-blue-400/50 h-14 text-lg backdrop-blur-sm transition-all duration-500 shadow-lg"
+                    required
+                    data-testid="input-password"
+                  />
+                  <div className="absolute inset-0 rounded-md bg-gradient-to-r from-blue-500/10 to-transparent pointer-events-none" />
+                </div>
               </div>
               
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg" 
+                className="w-full bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:via-yellow-600 hover:to-amber-700 text-slate-900 font-bold py-4 text-xl rounded-xl transition-all duration-500 transform hover:scale-105 shadow-2xl hover:shadow-amber-500/25 ring-2 ring-amber-400/20" 
                 disabled={loginMutation.isPending}
                 data-testid="button-login"
               >
                 {loginMutation.isPending ? (
-                  <Loader2 className="w-5 h-5 animate-spin ml-1" />
+                  <Loader2 className="w-6 h-6 animate-spin ml-2" />
                 ) : (
-                  <User className="w-5 h-5 ml-1" />
+                  <Building2 className="w-6 h-6 ml-2" />
                 )}
-                دخول
+                دخول النظام
               </Button>
             </form>
             ) : (
-            <div className="space-y-4">
-              <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur-sm border border-white/20">
-                <User className="w-16 h-16 text-white mx-auto mb-4" />
-                <h3 className="font-medium mb-3 text-white text-lg">دخول كزائر</h3>
-                <p className="text-sm text-white/70 mb-6 leading-relaxed">
+            <div className="space-y-6">
+              <div className="text-center p-8 bg-white/5 rounded-2xl backdrop-blur-sm border border-white/10 shadow-2xl">
+                <div className="relative w-20 h-20 mx-auto mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-400/20 rounded-full blur-xl animate-pulse" />
+                  <div className="relative w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-600/80 to-teal-500/80 shadow-2xl border border-white/20 backdrop-blur-sm">
+                    <User className="w-10 h-10 text-white drop-shadow-lg" />
+                  </div>
+                </div>
+                <h3 className="font-bold mb-4 text-white text-2xl drop-shadow-lg">دخول كزائر</h3>
+                <p className="text-lg text-blue-200/80 mb-8 leading-relaxed">
                   سيمكنك الدخول كزائر من مشاهدة البيانات فقط بدون إمكانية التعديل
                 </p>
                 <Button 
                   onClick={handleGuestLogin}
                   disabled={guestMutation.isPending}
-                  className="w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:via-emerald-700 hover:to-teal-700 text-white font-bold py-4 text-xl rounded-xl transition-all duration-500 transform hover:scale-105 shadow-2xl hover:shadow-emerald-500/25 ring-2 ring-emerald-400/20"
                   data-testid="button-guest-login"
                 >
                   {guestMutation.isPending ? (
-                    <Loader2 className="w-5 h-5 animate-spin ml-1" />
+                    <Loader2 className="w-6 h-6 animate-spin ml-2" />
                   ) : (
-                    <User className="w-5 h-5 ml-1" />
+                    <User className="w-6 h-6 ml-2" />
                   )}
                   دخول كزائر
                 </Button>

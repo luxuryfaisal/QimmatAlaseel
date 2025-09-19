@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
-import { insertOrderSchema, insertNoteSchema, insertTaskSchema, insertTaskNoteSchema, insertAttachmentSchema, insertSettingsSchema, insertSectionSchema, insertUserSchema } from "@shared/schema";
+import { insertOrderSchema, insertNoteSchema, insertTaskSchema, insertTaskNoteSchema, insertAttachmentSchema, insertSettingsSchema, insertSectionSchema, insertUserSchema, insertPersonalNotesSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -580,6 +580,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "خطأ في حذف القسم" });
+    }
+  });
+
+  // Personal Notes routes
+  app.get("/api/personal-notes", requireAuth, async (req, res) => {
+    try {
+      const personalNotes = await storage.getPersonalNotes(req.user.id);
+      res.json(personalNotes);
+    } catch (error) {
+      res.status(500).json({ message: "خطأ في استرجاع الملاحظات الشخصية" });
+    }
+  });
+
+  app.put("/api/personal-notes", requireAuth, async (req, res) => {
+    try {
+      // Prevent guests from writing personal notes
+      if (req.user.role === 'guest') {
+        return res.status(403).json({ message: "الضيوف غير مخولين لحفظ الملاحظات" });
+      }
+      
+      const updateData = insertPersonalNotesSchema.partial().parse(req.body);
+      const updatedNotes = await storage.updatePersonalNotes(updateData, req.user.id);
+      res.json(updatedNotes);
+    } catch (error) {
+      res.status(400).json({ message: "خطأ في تحديث الملاحظات الشخصية" });
     }
   });
 

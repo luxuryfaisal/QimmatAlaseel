@@ -700,6 +700,63 @@ export class MemStorage implements IStorage {
     const bcryptjs = require('bcryptjs');
     return bcryptjs.compareSync(pin, userSettings.pinHash);
   }
+
+  // Personal Notes methods
+  async getPersonalNotes(ownerId: string): Promise<PersonalNotes | undefined> {
+    const existingNotes = this.personalNotes.get(ownerId);
+    
+    if (existingNotes) {
+      return existingNotes;
+    }
+    
+    // Return default personal notes structure for new users
+    const defaultNotes: PersonalNotes = {
+      id: randomUUID(),
+      ownerId,
+      tab1Name: "ملاحظة 1",
+      tab1Content: "",
+      tab2Name: "ملاحظة 2", 
+      tab2Content: "",
+      tab3Name: "ملاحظة 3",
+      tab3Content: "",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // Store the default notes for future access
+    this.personalNotes.set(ownerId, defaultNotes);
+    return defaultNotes;
+  }
+
+  async updatePersonalNotes(notes: Partial<InsertPersonalNotes>, ownerId: string): Promise<PersonalNotes> {
+    const existingNotes = this.personalNotes.get(ownerId);
+    
+    if (existingNotes) {
+      const updatedNotes: PersonalNotes = {
+        ...existingNotes,
+        ...notes,
+        updatedAt: new Date()
+      };
+      this.personalNotes.set(ownerId, updatedNotes);
+      return updatedNotes;
+    } else {
+      // Create new personal notes for the user
+      const newNotes: PersonalNotes = {
+        id: randomUUID(),
+        ownerId,
+        tab1Name: notes.tab1Name || "ملاحظة 1",
+        tab1Content: notes.tab1Content || "",
+        tab2Name: notes.tab2Name || "ملاحظة 2",
+        tab2Content: notes.tab2Content || "",
+        tab3Name: notes.tab3Name || "ملاحظة 3",
+        tab3Content: notes.tab3Content || "",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.personalNotes.set(ownerId, newNotes);
+      return newNotes;
+    }
+  }
 }
 
 export const storage = new MemStorage();

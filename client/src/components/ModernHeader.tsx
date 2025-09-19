@@ -1,11 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save } from "lucide-react";
+import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save, Edit2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import type { PersonalNotes } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 // Safe ESM logo import with fallback
 const logos = import.meta.glob('@assets/Picsart_25-09-19_00-28-14-307_1758237498784.png', { 
@@ -48,17 +52,46 @@ export default function ModernHeader({
   isDarkMode,
   onToggleDarkMode 
 }: ModernHeaderProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [imageError, setImageError] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
-  const [activeNoteTab, setActiveNoteTab] = useState("note1");
-  const [notes, setNotes] = useState({
-    note1: "",
-    note2: "",
-    note3: ""
-  });
+  const [activeNoteTab, setActiveNoteTab] = useState("tab1");
   const [adminProfilePic, setAdminProfilePic] = useState<string | null>(null);
   const [profilePicDialogOpen, setProfilePicDialogOpen] = useState(false);
+  const [editingTabName, setEditingTabName] = useState<string | null>(null);
+  const [tempTabName, setTempTabName] = useState("");
+
+  // Fetch personal notes only when user is logged in and not opening dialog
+  const { data: personalNotes, isLoading: notesLoading } = useQuery<PersonalNotes>({
+    queryKey: ['/api/personal-notes'],
+    enabled: !!username && username !== 'زائر' && notesDialogOpen, // Only fetch when dialog opens and user is logged in
+    retry: 1, // Limited retry for better error handling
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false // Don't refetch on window focus
+  });
+
+  // Create/Update personal notes mutation
+  const updateNotesMutation = useMutation({
+    mutationFn: async (notes: Partial<PersonalNotes>) => {
+      return apiRequest('PUT', '/api/personal-notes', notes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/personal-notes'] });
+      toast({
+        title: "تم الحفظ",
+        description: "تم حفظ الملاحظات بنجاح"
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "فشل في حفظ الملاحظات"
+      });
+    }
+  });
 
   // Update time every second
   useEffect(() => {
@@ -68,31 +101,50 @@ export default function ModernHeader({
     return () => clearInterval(timer);
   }, []);
 
-  // Load saved notes and profile pic from localStorage
+  // Load saved profile pic from localStorage (keep this separate from notes)
   useEffect(() => {
-    const savedNotes = localStorage.getItem('headerNotes');
-    if (savedNotes) {
-      try {
-        setNotes(JSON.parse(savedNotes));
-      } catch (error) {
-        console.warn('Failed to parse saved notes, using defaults', error);
-        // Keep default empty notes if JSON is corrupted
-      }
-    }
     const savedProfilePic = localStorage.getItem('adminProfilePic');
     if (savedProfilePic) {
       setAdminProfilePic(savedProfilePic);
     }
   }, []);
 
+  // Helper functions for personal notes
   const saveNotes = () => {
-    try {
-      localStorage.setItem('headerNotes', JSON.stringify(notes));
-      setNotesDialogOpen(false);
-    } catch (error) {
-      console.error('Failed to save notes', error);
-      // Could add toast notification here for user feedback
+    setNotesDialogOpen(false);
+  };
+
+  const updateTabContent = (tabKey: 'tab1Content' | 'tab2Content' | 'tab3Content', content: string) => {
+    // Only update if user is logged in
+    if (username && username !== 'زائر') {
+      updateNotesMutation.mutate({ [tabKey]: content });
     }
+  };
+
+  const updateTabName = (tabKey: 'tab1Name' | 'tab2Name' | 'tab3Name', name: string) => {
+    // Only update if user is logged in
+    if (username && username !== 'زائر') {
+      updateNotesMutation.mutate({ [tabKey]: name });
+    }
+  };
+
+  const handleTabNameEdit = (tabName: string) => {
+    setEditingTabName(tabName);
+    const currentName = personalNotes?.[tabName as keyof PersonalNotes] as string || "";
+    setTempTabName(currentName);
+  };
+
+  const saveTabName = () => {
+    if (editingTabName && tempTabName.trim()) {
+      updateTabName(editingTabName as 'tab1Name' | 'tab2Name' | 'tab3Name', tempTabName.trim());
+    }
+    setEditingTabName(null);
+    setTempTabName("");
+  };
+
+  const cancelTabNameEdit = () => {
+    setEditingTabName(null);
+    setTempTabName("");
   };
 
   const handleProfilePicUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -304,34 +356,133 @@ export default function ModernHeader({
                 </DialogHeader>
                 <Tabs value={activeNoteTab} onValueChange={setActiveNoteTab} className="w-full" dir="rtl">
                   <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="note1" data-testid="tab-note1">ملاحظة 1</TabsTrigger>
-                    <TabsTrigger value="note2" data-testid="tab-note2">ملاحظة 2</TabsTrigger>
-                    <TabsTrigger value="note3" data-testid="tab-note3">ملاحظة 3</TabsTrigger>
+                    <TabsTrigger value="tab1" data-testid="tab-note1" className="relative">
+                      {editingTabName === "tab1Name" ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={tempTabName}
+                            onChange={(e) => setTempTabName(e.target.value)}
+                            className="h-6 text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveTabName();
+                              if (e.key === 'Escape') cancelTabNameEdit();
+                            }}
+                            autoFocus
+                          />
+                          <Button size="sm" variant="ghost" onClick={saveTabName} className="h-6 w-6 p-0">
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelTabNameEdit} className="h-6 w-6 p-0">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span>{personalNotes?.tab1Name || "ملاحظة 1"}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleTabNameEdit("tab1Name")}
+                            className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="tab2" data-testid="tab-note2" className="relative">
+                      {editingTabName === "tab2Name" ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={tempTabName}
+                            onChange={(e) => setTempTabName(e.target.value)}
+                            className="h-6 text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveTabName();
+                              if (e.key === 'Escape') cancelTabNameEdit();
+                            }}
+                            autoFocus
+                          />
+                          <Button size="sm" variant="ghost" onClick={saveTabName} className="h-6 w-6 p-0">
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelTabNameEdit} className="h-6 w-6 p-0">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span>{personalNotes?.tab2Name || "ملاحظة 2"}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleTabNameEdit("tab2Name")}
+                            className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="tab3" data-testid="tab-note3" className="relative">
+                      {editingTabName === "tab3Name" ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            value={tempTabName}
+                            onChange={(e) => setTempTabName(e.target.value)}
+                            className="h-6 text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveTabName();
+                              if (e.key === 'Escape') cancelTabNameEdit();
+                            }}
+                            autoFocus
+                          />
+                          <Button size="sm" variant="ghost" onClick={saveTabName} className="h-6 w-6 p-0">
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelTabNameEdit} className="h-6 w-6 p-0">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span>{personalNotes?.tab3Name || "ملاحظة 3"}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleTabNameEdit("tab3Name")}
+                            className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="note1" className="space-y-4">
+                  <TabsContent value="tab1" className="space-y-4">
                     <Textarea 
                       placeholder="اكتب ملاحظاتك هنا..."
                       className="min-h-[200px] text-right"
-                      value={notes.note1}
-                      onChange={(e) => setNotes(prev => ({ ...prev, note1: e.target.value }))}
+                      value={personalNotes?.tab1Content || ""}
+                      onChange={(e) => updateTabContent('tab1Content', e.target.value)}
                       data-testid="textarea-note1"
                     />
                   </TabsContent>
-                  <TabsContent value="note2" className="space-y-4">
+                  <TabsContent value="tab2" className="space-y-4">
                     <Textarea 
                       placeholder="اكتب ملاحظاتك هنا..."
                       className="min-h-[200px] text-right"
-                      value={notes.note2}
-                      onChange={(e) => setNotes(prev => ({ ...prev, note2: e.target.value }))}
+                      value={personalNotes?.tab2Content || ""}
+                      onChange={(e) => updateTabContent('tab2Content', e.target.value)}
                       data-testid="textarea-note2"
                     />
                   </TabsContent>
-                  <TabsContent value="note3" className="space-y-4">
+                  <TabsContent value="tab3" className="space-y-4">
                     <Textarea 
                       placeholder="اكتب ملاحظاتك هنا..."
                       className="min-h-[200px] text-right"
-                      value={notes.note3}
-                      onChange={(e) => setNotes(prev => ({ ...prev, note3: e.target.value }))}
+                      value={personalNotes?.tab3Content || ""}
+                      onChange={(e) => updateTabContent('tab3Content', e.target.value)}
                       data-testid="textarea-note3"
                     />
                   </TabsContent>

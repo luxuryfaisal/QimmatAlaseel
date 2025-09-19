@@ -84,7 +84,7 @@ const requireWrite = async (req: any, res: any, next: any) => {
   next();
 };
 
-// Authorization middleware for admin and employee routes using session
+// Authorization middleware for admin-only routes using session
 const requireAdmin = async (req: any, res: any, next: any) => {
   // Check session for authenticated user
   if (!req.session || !req.session.userId) {
@@ -94,8 +94,8 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     // Get user from storage to verify current role
     const user = await storage.getUser(req.session.userId);
-    if (!user || (user.role !== 'admin' && user.role !== 'employee')) {
-      return res.status(403).json({ message: "يجب أن تكون مديراً أو موظفاً للوصول لهذه الميزة" });
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: "يجب أن تكون مديراً للوصول لهذه الميزة" });
     }
     
     req.user = { id: user.id, username: user.username, role: user.role };
@@ -566,11 +566,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users", requireAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      // Admin can see plain passwords, others cannot
+      // Always hide password for security
       const safeUsers = users.map(user => ({ 
         ...user, 
-        password: undefined, // Always hide hashed password
-        plainPassword: req.user.role === 'admin' ? user.plainPassword : undefined
+        password: undefined // Always hide hashed password
       }));
       res.json(safeUsers);
     } catch (error) {

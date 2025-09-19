@@ -270,7 +270,6 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
                 <TableRow>
                   <TableHead className="text-right">اسم المستخدم</TableHead>
                   <TableHead className="text-right">الدور</TableHead>
-                  {currentUserRole === 'admin' && <TableHead className="text-right">كلمة المرور</TableHead>}
                   <TableHead className="text-right">تاريخ الإنشاء</TableHead>
                   <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
@@ -278,13 +277,13 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={currentUserRole === 'admin' ? 5 : 4} className="text-center py-8">
+                    <TableCell colSpan={4} className="text-center py-8">
                       جاري التحميل...
                     </TableCell>
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={currentUserRole === 'admin' ? 5 : 4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                       لا يوجد مستخدمين
                     </TableCell>
                   </TableRow>
@@ -297,11 +296,6 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
                       <TableCell data-testid={`badge-role-${user.id}`}>
                         {getRoleBadge(user.role || "viewer")}
                       </TableCell>
-                      {currentUserRole === 'admin' && (
-                        <TableCell className="font-mono text-sm" data-testid={`text-password-${user.id}`}>
-                          {(user as any).plainPassword || 'غير متاح'}
-                        </TableCell>
-                      )}
                       <TableCell className="text-muted-foreground" data-testid={`text-created-${user.id}`}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar') : '-'}
                       </TableCell>

@@ -363,7 +363,7 @@ export default function OrderTracker() {
   });
 
   const handleUpdateSectionName = (sectionId: string, newName: string) => {
-    if (newName.trim() && userRole === 'admin') {
+    if (newName.trim() && (userRole === 'admin' || userRole === 'employee')) {
       updateSectionMutation.mutate({ id: sectionId, data: { name: newName.trim() } });
     }
   };
@@ -1024,7 +1024,7 @@ export default function OrderTracker() {
             طباعة
           </Button>
           
-          {userRole === 'admin' && (
+          {(userRole === 'admin' || userRole === 'employee') && (
             <Button 
               variant="outline" 
               onClick={handleOpenSections}

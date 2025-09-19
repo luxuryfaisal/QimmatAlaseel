@@ -84,8 +84,8 @@ const requireWrite = async (req: any, res: any, next: any) => {
   next();
 };
 
-// Authorization middleware for admin-only routes using session
-const requireAdmin = async (req: any, res: any, next: any) => {
+// Authorization middleware for admin and employee routes using session
+const requireAdminOrEmployee = async (req: any, res: any, next: any) => {
   // Check session for authenticated user
   if (!req.session || !req.session.userId) {
     return res.status(401).json({ message: "غير مخول للوصول" });
@@ -94,8 +94,8 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     // Get user from storage to verify current role
     const user = await storage.getUser(req.session.userId);
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: "يجب أن تكون مديراً للوصول لهذه الميزة" });
+    if (!user || (user.role !== 'admin' && user.role !== 'employee')) {
+      return res.status(403).json({ message: "يجب أن تكون مديراً أو موظفاً للوصول لهذه الميزة" });
     }
     
     req.user = { id: user.id, username: user.username, role: user.role };
@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sections", requireAdmin, async (req, res) => {
+  app.post("/api/sections", requireAdminOrEmployee, async (req, res) => {
     try {
       const sectionData = insertSectionSchema.parse(req.body);
       const newSection = await storage.createSection(sectionData, req.user.id);
@@ -531,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/sections/:id", requireAdmin, async (req, res) => {
+  app.put("/api/sections/:id", requireAdminOrEmployee, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertSectionSchema.partial().parse(req.body);
@@ -547,7 +547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/sections/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/sections/:id", requireAdminOrEmployee, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteSection(id, req.user.id);
@@ -563,7 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management routes
-  app.get("/api/users", requireAdmin, async (req, res) => {
+  app.get("/api/users", requireAdminOrEmployee, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       // Always hide password for security
@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireAdmin, async (req, res) => {
+  app.post("/api/users", requireAdminOrEmployee, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
       // storage.createUser will handle password hashing
@@ -590,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", requireAdmin, async (req, res) => {
+  app.put("/api/users/:id", requireAdminOrEmployee, async (req, res) => {
     try {
       const { id } = req.params;
       const updateData = insertUserSchema.partial().parse(req.body);
@@ -610,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/users/:id", requireAdminOrEmployee, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteUser(id);

@@ -160,6 +160,8 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
     switch (role) {
       case 'admin':
         return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><Shield className="w-3 h-3 ml-1" />مدير</Badge>;
+      case 'employee':
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><UserPlus className="w-3 h-3 ml-1" />موظف</Badge>;
       case 'viewer':
         return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><Eye className="w-3 h-3 ml-1" />مشاهد</Badge>;
       case 'guest':
@@ -236,7 +238,7 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">مدير</SelectItem>
-                        <SelectItem value="editor">محرر</SelectItem>
+                        <SelectItem value="employee">موظف</SelectItem>
                         <SelectItem value="viewer">مشاهد</SelectItem>
                         <SelectItem value="guest">زائر</SelectItem>
                       </SelectContent>
@@ -384,6 +386,7 @@ export default function UserManagement({ isOpen, onClose, currentUserRole }: Use
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">مدير</SelectItem>
+                    <SelectItem value="employee">موظف</SelectItem>
                     <SelectItem value="viewer">مشاهد</SelectItem>
                     <SelectItem value="guest">زائر</SelectItem>
                   </SelectContent>

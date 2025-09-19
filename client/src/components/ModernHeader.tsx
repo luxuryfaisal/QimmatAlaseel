@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save, Edit2, Play, Pause } from "lucide-react";
+import { LogOut, User, Settings, Moon, Sun, Clock, Calendar, NotebookPen, Camera, Plus, X, Save, Edit2, Play, Pause, Palette } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { PersonalNotes } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
-// Safe ESM logo import with fallback
-const logos = import.meta.glob('@assets/Picsart_25-09-19_00-28-14-307_1758237498784.png', { 
+// Safe ESM logo import with fallback  
+const logos = import.meta.glob('@assets/1000063409_1758280754249.png', { 
   eager: true, 
   query: '?url',
   import: 'default'
@@ -31,7 +31,7 @@ const LogoFallback = () => (
     className="h-16 w-16 bg-white/20 rounded-lg flex items-center justify-center text-white font-bold text-xl"
     data-testid="img-company-logo-fallback"
   >
-    قأ
+    ق
   </div>
 );
 
@@ -65,6 +65,8 @@ export default function ModernHeader({
   const [imageTransitioning, setImageTransitioning] = useState(false);
   const [editingTabName, setEditingTabName] = useState<string | null>(null);
   const [tempTabName, setTempTabName] = useState("");
+  const [themeColorDialogOpen, setThemeColorDialogOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState('default');
 
   // Fetch personal notes only when user is logged in and not opening dialog
   const { data: personalNotes, isLoading: notesLoading } = useQuery<PersonalNotes>({
@@ -116,6 +118,15 @@ export default function ModernHeader({
       } catch (error) {
         console.error('Failed to parse saved profile pictures', error);
       }
+    }
+  }, []);
+
+  // Load saved theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('selectedTheme');
+    if (savedTheme && savedTheme !== 'default') {
+      setCurrentTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
     }
   }, []);
 
@@ -210,6 +221,28 @@ export default function ModernHeader({
     setProfilePicDialogOpen(false);
   };
 
+  // Theme switching functions
+  const applyTheme = (themeName: string) => {
+    setCurrentTheme(themeName);
+    if (themeName === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.removeItem('selectedTheme');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeName);
+      localStorage.setItem('selectedTheme', themeName);
+    }
+    setThemeColorDialogOpen(false);
+  };
+
+  const availableThemes = [
+    { id: 'default', name: 'الافتراضي', colors: ['#3B82F6', '#8B5CF6'] },
+    { id: 'ocean', name: 'المحيط', colors: ['#0EA5E9', '#06B6D4'] },
+    { id: 'sunset', name: 'غروب الشمس', colors: ['#F97316', '#EF4444'] },
+    { id: 'forest', name: 'الغابة', colors: ['#22C55E', '#16A34A'] },
+    { id: 'royal', name: 'ملكي', colors: ['#8B5CF6', '#FFD700'] },
+    { id: 'rose', name: 'وردي', colors: ['#EC4899', '#F43F5E'] }
+  ];
+
   // Format time in Arabic (12-hour format for Saudi Arabia)
   const formatTimeArabic = (date: Date) => {
     return date.toLocaleTimeString('ar-SA', {
@@ -248,8 +281,13 @@ export default function ModernHeader({
 
   return (
     <div className="relative overflow-hidden">
-      {/* Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"></div>
+      {/* Dynamic Theme Background Gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(135deg, var(--header-from) 0%, var(--header-to) 100%)`
+        }}
+      ></div>
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20"></div>
       
       {/* Decorative Elements */}
@@ -266,7 +304,7 @@ export default function ModernHeader({
             {logoUrl && !imageError ? (
               <img 
                 src={logoUrl} 
-                alt="شعار شركة قمة الأصيل" 
+                alt="شعار شركة قمة الأصيل للعقارات" 
                 className="h-16 w-auto object-contain"
                 data-testid="img-company-logo"
                 onError={() => setImageError(true)}
@@ -296,6 +334,63 @@ export default function ModernHeader({
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
+
+            {/* Theme Colors */}
+            <Dialog open={themeColorDialogOpen} onOpenChange={setThemeColorDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/10"
+                  data-testid="button-theme-colors"
+                >
+                  <Palette className="w-5 h-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg" data-testid="dialog-theme-colors">
+                <DialogHeader>
+                  <DialogTitle className="text-right text-xl">اختيار ألوان الموقع</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-right text-muted-foreground">اختر لوحة الألوان المفضلة لك لتخصيص شكل الموقع</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {availableThemes.map((theme) => (
+                      <button
+                        key={theme.id}
+                        onClick={() => applyTheme(theme.id)}
+                        className={`p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
+                          currentTheme === theme.id
+                            ? 'border-primary shadow-lg bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        data-testid={`theme-${theme.id}`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-semibold text-right">{theme.name}</span>
+                          {currentTheme === theme.id && (
+                            <div className="w-3 h-3 bg-primary rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex space-x-reverse space-x-2">
+                          {theme.colors.map((color, index) => (
+                            <div
+                              key={index}
+                              className="w-8 h-8 rounded-full border-2 border-white shadow-md"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button onClick={() => setThemeColorDialogOpen(false)} variant="outline" data-testid="button-close-theme-dialog">
+                      إغلاق
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Settings */}
             <Button

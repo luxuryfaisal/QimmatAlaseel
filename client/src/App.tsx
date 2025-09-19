@@ -6,6 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import OrderTracker from "@/pages/OrderTracker";
 
+// Safe background logo import
+const bgLogos = import.meta.glob('@assets/1000063409_1758280754249.png', { 
+  eager: true, 
+  query: '?url',
+  import: 'default'
+});
+const bgLogoUrl = Object.values(bgLogos)[0] as string | undefined;
+
 function Router() {
   return (
     <Switch>
@@ -20,6 +28,12 @@ function App() {
     <ThemeProvider defaultTheme="light">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <div 
+            className="site-background" 
+            style={{
+              '--bg-logo': bgLogoUrl ? `url(${bgLogoUrl})` : 'none'
+            } as React.CSSProperties & { '--bg-logo': string }}
+          />
           <Toaster />
           <Router />
         </TooltipProvider>

@@ -42,6 +42,64 @@
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 0.5rem;
+  --bg-logo: none;
+  --header-from: hsl(221, 83%, 53%);
+  --header-to: hsl(262, 83%, 58%);
+}
+
+/* Ocean Theme - Blue & Teal */
+[data-theme="ocean"] {
+  --primary: hsl(198, 93%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(191, 91%, 36%);
+  --accent: hsl(184, 77%, 34%);
+  --ring: hsl(198, 93%, 60%);
+  --header-from: hsl(198, 93%, 60%);
+  --header-to: hsl(184, 77%, 34%);
+}
+
+/* Sunset Theme - Orange & Red */
+[data-theme="sunset"] {
+  --primary: hsl(20, 89%, 54%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(14, 77%, 52%);
+  --accent: hsl(358, 75%, 59%);
+  --ring: hsl(20, 89%, 54%);
+  --header-from: hsl(20, 89%, 54%);
+  --header-to: hsl(358, 75%, 59%);
+}
+
+/* Forest Theme - Green & Nature */
+[data-theme="forest"] {
+  --primary: hsl(120, 60%, 50%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(134, 61%, 41%);
+  --accent: hsl(142, 76%, 36%);
+  --ring: hsl(120, 60%, 50%);
+  --header-from: hsl(120, 60%, 50%);
+  --header-to: hsl(142, 76%, 36%);
+}
+
+/* Royal Theme - Purple & Gold */
+[data-theme="royal"] {
+  --primary: hsl(263, 70%, 50%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(280, 87%, 65%);
+  --accent: hsl(45, 100%, 51%);
+  --ring: hsl(263, 70%, 50%);
+  --header-from: hsl(263, 70%, 50%);
+  --header-to: hsl(45, 100%, 51%);
+}
+
+/* Rose Theme - Pink & Warm */
+[data-theme="rose"] {
+  --primary: hsl(330, 81%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(346, 77%, 49%);
+  --accent: hsl(351, 95%, 71%);
+  --ring: hsl(330, 81%, 60%);
+  --header-from: hsl(330, 81%, 60%);
+  --header-to: hsl(351, 95%, 71%);
 }
 
 .dark {
@@ -97,6 +155,25 @@
     backdrop-filter: blur(16px);
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .site-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background-image: var(--bg-logo);
+    background-size: 200px 200px;
+    background-repeat: no-repeat;
+    background-position: center center;
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  .dark .site-background {
+    opacity: 0.03;
   }
 
   .rtl-input {

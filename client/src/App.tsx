@@ -14,13 +14,6 @@ const bgLogos = import.meta.glob("../../attached_assets/1000063409_1758280754249
 });
 const bgLogoUrl = Object.values(bgLogos)[0] as string | undefined;
 
-const bgLogoUrl = Object.values(bgLogos)[0] as string | undefined;
-  });
-});
-
-});
-const bgLogoUrl = Object.values(bgLogos)[0] as string | undefined;
-
 function Router() {
   return (
     <Switch>

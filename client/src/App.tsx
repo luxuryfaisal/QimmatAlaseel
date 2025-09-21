@@ -8,10 +8,12 @@ import OrderTracker from "@/pages/OrderTracker";
 
 // Safe background logo import
   // Safe background logo import
-  const bgLogos = import.meta.glob("../../attached_assets/1000063409_1758280754249.png", {
-    eager: true,
-    query: "?url",
-    import: "default"
+const bgLogos = import.meta.glob("../../attached_assets/1000063409_1758280754249.png", {
+  eager: true,
+  query: "?url",
+  import: "default"
+});
+const bgLogoUrl = Object.values(bgLogos)[0] as string | undefined;
   });
 });
 

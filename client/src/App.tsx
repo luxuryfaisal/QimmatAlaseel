@@ -13,10 +13,6 @@ import OrderTracker from "@/pages/OrderTracker";
     query: "?url",
     import: "default"
   });
-  const bgLogos = import.meta.glob("../../attached_assets/1000063409_1758280754249.png", {
-  eager: true,
-  query: "?url",
-  import: "default"
 });
 
 });

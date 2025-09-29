@@ -7,7 +7,7 @@
   },
   "functions": {
     "dist/index.js": {
-      "runtime": "node runtimes/node18.x" 
+      "runtime": "node18.x" 
     }
   },
   "rewrites": [

@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "build": {
+    "env": {
+      "VITE_BUILD": "true"
+    }
+  },
+  "functions": {
+    "dist/index.js": {
+      "runtime": "node runtimes/node18.x" 
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/dist/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/dist/public/index.html"
+    }
+  ],
+  "cleanUrls": true,
+  "outputDirectory": "dist"
+}
